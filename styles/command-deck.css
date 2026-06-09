@@ -1,0 +1,103 @@
+/* ============================================================
+   Mission Control · COMMAND DECK (v2 reskin layer)
+   Additive on top of the v1 token set. Three rules:
+   1) glass surfaces, 2) glow = status (never decoration),
+   3) every animation traces to data or settles quickly.
+   ============================================================ */
+
+/* ---- deck atmosphere: layered radial light + drifting grid ---- */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(1200px 600px at 75% -10%, rgba(35,214,245,0.07), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(216,167,74,0.05), transparent 60%);
+}
+body::after {
+  content: '';
+  position: fixed; inset: -60px; z-index: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(35,214,245,0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(35,214,245,0.028) 1px, transparent 1px);
+  background-size: 56px 56px;
+  animation: deckDrift 90s linear infinite;
+  opacity: calc(var(--grain-op, 0.05) * 12);
+}
+@keyframes deckDrift { from { transform: translate(0,0); } to { transform: translate(56px,56px); } }
+@media (prefers-reduced-motion: reduce) {
+  body::after { animation: none; }
+}
+
+/* ---- glass panels ---- */
+.mc-panel, .mc-integ, .mc-pcteam, .mc-modal {
+  background: rgba(13, 20, 36, 0.66);
+  backdrop-filter: blur(14px) saturate(1.15);
+  -webkit-backdrop-filter: blur(14px) saturate(1.15);
+  border-color: rgba(35, 214, 245, 0.13);
+}
+
+/* ---- edge-light sweep: runs ONCE when a panel mounts/updates, then settles ---- */
+.mc-panel, .mc-integ { position: relative; overflow: hidden; }
+.mc-panel::before, .mc-integ::before {
+  content: '';
+  position: absolute; top: 0; left: -40%;
+  width: 40%; height: 1px; z-index: 1; pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--acc, #23D6F5), transparent);
+  opacity: .55;
+  animation: edgeSweep 1.6s ease-out 1 both;
+}
+@keyframes edgeSweep { from { left: -40%; } to { left: 110%; opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .mc-panel::before, .mc-integ::before { animation: none; opacity: 0; }
+}
+
+/* ---- glow-as-status helpers (used by office, companion, chips) ---- */
+.glow-live   { box-shadow: 0 0 12px rgba(52, 211, 153, 0.35), 0 0 2px rgba(52, 211, 153, 0.6); }
+.glow-action { box-shadow: 0 0 14px rgba(232, 199, 102, 0.4), 0 0 3px rgba(232, 199, 102, 0.7); }
+.glow-risk   { box-shadow: 0 0 14px rgba(244, 81, 107, 0.4), 0 0 3px rgba(244, 81, 107, 0.7); }
+
+/* ---- composer mic + speak buttons (voice layer) ---- */
+.mc-composer__mic {
+  all: unset; cursor: pointer; display: grid; place-items: center;
+  width: 34px; height: 34px; border-radius: 10px; color: var(--fg-3, #94A3B8);
+  border: 1px solid rgba(35, 214, 245, 0.14); flex-shrink: 0;
+  transition: color .15s, border-color .15s, box-shadow .15s;
+}
+.mc-composer__mic:hover { color: var(--acc); border-color: rgba(35,214,245,.4); }
+.mc-composer__mic.is-listening {
+  color: #F4516B; border-color: rgba(244,81,107,.55);
+  animation: micPulse 1.2s ease-in-out infinite;
+}
+@keyframes micPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(244,81,107,.35); }
+  50%      { box-shadow: 0 0 0 7px rgba(244,81,107,0); }
+}
+
+/* ---- Living Office page ---- */
+.mc-office { position: relative; border-radius: 18px; overflow: hidden;
+  border: 1px solid rgba(35,214,245,.16); background: #050910;
+  min-height: 480px; }
+.mc-office canvas { display: block; width: 100%; height: auto; }
+.mc-office__hud {
+  position: absolute; top: 12px; left: 14px; z-index: 5; display: flex; gap: 8px; align-items: center;
+  font-family: var(--font-mono, monospace); font-size: 10px; letter-spacing: .08em;
+  color: #9fb0c4; text-transform: uppercase;
+}
+.mc-office__hud .dot { width: 7px; height: 7px; border-radius: 50%; background: #34D399; box-shadow: 0 0 8px #34D399; }
+.mc-office__hud.demo .dot { background: #64748B; box-shadow: none; }
+.mc-office__bubble {
+  position: absolute; z-index: 6; max-width: 220px; transform: translate(-50%, -100%);
+  background: rgba(10, 16, 30, 0.92); border: 1px solid rgba(35,214,245,.3);
+  border-radius: 12px; border-bottom-left-radius: 3px;
+  padding: 7px 11px; font-family: var(--font-body); font-size: 11.5px; line-height: 1.45;
+  color: #DCE7F5; pointer-events: none; backdrop-filter: blur(6px);
+  animation: bubbleIn .22s ease-out both;
+}
+.mc-office__bubble .who { font-family: var(--font-mono, monospace); font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: var(--acc); display: block; margin-bottom: 2px; }
+.mc-office__bubble.fade { animation: bubbleOut .5s ease-in both; }
+@keyframes bubbleIn { from { opacity: 0; transform: translate(-50%, calc(-100% + 8px)); } to { opacity: 1; transform: translate(-50%, -100%); } }
+@keyframes bubbleOut { to { opacity: 0; } }
+.mc-office__legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px;
+  font-family: var(--font-mono, monospace); font-size: 9.5px; color: var(--fg-3, #7c8aa0); }
+.mc-office__legend b { color: var(--fg-2, #aebdd2); font-weight: 600; }
+.mc-office__toggle { display: flex; gap: 6px; margin-bottom: 14px; }
