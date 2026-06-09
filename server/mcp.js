@@ -111,6 +111,20 @@ const TOOLS = [
     run: async (a) => apiGET('/api/vault/note?path=' + encodeURIComponent(a.path)),
   },
   {
+    name: 'vault_write_note',
+    description: 'Write a note into the shared Obsidian vault (the team second brain). Use this to log your work, decisions, and outputs so they compound in the Memory Galaxy. Path is vault-relative and must end in .md. mode "create" (default) refuses to overwrite an existing note; use "append" to add to one or "overwrite" to replace it.',
+    inputSchema: { type: 'object', properties: {
+      path: { type: 'string', description: 'Vault-relative path, e.g. "03_AGENTS_FIRST_BRAINS/Kratos/log.md".' },
+      content: { type: 'string', description: 'Markdown content to write.' },
+      mode: { type: 'string', description: 'create | append | overwrite (default create).' },
+      by: { type: 'string', description: 'Your agent id (for the activity feed).' },
+    }, required: ['path', 'content'] },
+    run: async (a) => {
+      const r = await apiPOST('/api/vault/note', { path: a.path, content: a.content, mode: a.mode || 'create', by: a.by });
+      return { written: true, path: r.path, bytes: r.bytes, mode: r.mode };
+    },
+  },
+  {
     name: 'vault_recent',
     description: 'List the most recently modified notes in the vault — what the team has been working on lately.',
     inputSchema: { type: 'object', properties: { limit: { type: 'number', description: 'How many (default 10).' } } },

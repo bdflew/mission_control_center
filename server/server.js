@@ -78,6 +78,15 @@ const api = {
     catch (e) { sendJSON(res, 400, { error: e.message }); }
   },
 
+  'POST /api/vault/note': async (req, res) => {
+    try {
+      const b = await readBody(req, 6e5);
+      const r = vault.writeNote(b.path, b.content, b.mode || 'create');
+      store.bus.emit('event', { type: 'vault', note: r, by: b.by || 'agent' });
+      sendJSON(res, 200, { ok: true, ...r });
+    } catch (e) { sendJSON(res, 400, { error: e.message }); }
+  },
+
   'GET /api/chat': (req, res) => {
     const channel = req._q.channel || 'warroom';
     sendJSON(res, 200, { channel, messages: store.getChannel(channel) });

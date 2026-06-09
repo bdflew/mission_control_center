@@ -171,16 +171,41 @@ function getVault(force) {
   return cache;
 }
 
-// Read one note's content, guarded against path traversal outside the vault.
-function readNote(relPath) {
+// Resolve a vault-relative path, guarded against traversal outside the vault.
+function resolveInVault(relPath) {
   const root = path.resolve(config.vaultDir);
-  const target = path.resolve(root, relPath);
-  if (target !== root && !target.startsWith(root + path.sep)) {
-    throw new Error('path escapes vault');
-  }
-  if (!target.toLowerCase().endsWith('.md')) throw new Error('not a markdown note');
+  const target = path.resolve(root, relPath || '');
+  if (target !== root && !target.startsWith(root + path.sep)) throw new Error('path escapes vault');
+  if (!target.toLowerCase().endsWith('.md')) throw new Error('not a markdown note (.md required)');
+  return { root, target };
+}
+
+// Read one note's content.
+function readNote(relPath) {
+  const { target } = resolveInVault(relPath);
   const content = fs.readFileSync(target, 'utf8');
   return { path: relPath, content: content.slice(0, 200000) };
 }
 
-module.exports = { getVault, readNote };
+// Write a note. mode: 'create' (default, errors if exists) | 'overwrite' | 'append'.
+// Path-confined to the vault. Direct writes are enabled (Lew's call) — the only
+// guard is that 'create' refuses to silently clobber an existing note.
+function writeNote(relPath, content, mode = 'create') {
+  const { target } = resolveInVault(relPath);
+  if (typeof content !== 'string') throw new Error('content (string) required');
+  if (content.length > 500000) throw new Error('content too large');
+  const exists = fs.existsSync(target);
+  if (exists && mode === 'create') throw new Error('note already exists — use mode "overwrite" or "append"');
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  if (mode === 'append' && exists) {
+    fs.appendFileSync(target, (content.startsWith('\n') ? '' : '\n') + content);
+  } else {
+    fs.writeFileSync(target, content);
+  }
+  invalidate(); // so the galaxy / stats reflect the new note immediately
+  return { path: relPath, bytes: Buffer.byteLength(content), mode: exists ? mode : 'create', existed: exists };
+}
+
+function invalidate() { cache = null; cacheAt = 0; }
+
+module.exports = { getVault, readNote, writeNote, invalidate };

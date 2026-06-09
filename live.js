@@ -85,6 +85,8 @@
           patchAgent(evt.agent); window.dispatchEvent(new Event('mc:live'));
         } else if (evt.type === 'approval') {
           refreshApprovals().then(() => window.dispatchEvent(new Event('mc:live')));
+        } else if (evt.type === 'vault') {
+          refreshVault().then(() => window.dispatchEvent(new Event('mc:live')));
         }
       };
       es.onerror = () => { /* EventSource auto-reconnects */ };
@@ -131,6 +133,10 @@
     } catch {}
   }
   MCLive.resolveApproval = (id, decision) => post('/api/approvals/resolve', { id, decision });
+
+  async function refreshVault() {
+    try { const v = await get('/api/vault?force=1'); patchVault(v); } catch {}
+  }
 
   function patchVault(v) {
     const MC = window.MC;

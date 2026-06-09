@@ -84,6 +84,17 @@ async function main() {
         console.log('\n' + d.content + '\n');
         break;
       }
+      case 'write': {
+        const p = positionals(rest)[0];
+        if (!p) throw new Error('usage: mc write <path.md> --content "..."  (or pipe content on stdin)');
+        let content = flag(rest, 'content');
+        if (content === undefined && !process.stdin.isTTY) {
+          content = await new Promise(r => { let s = ''; process.stdin.on('data', c => s += c); process.stdin.on('end', () => r(s)); });
+        }
+        const r = await post('/api/vault/note', { path: p, content: content || '', mode: flag(rest, 'mode') || 'create', by: flag(rest, 'by') });
+        console.log(`wrote ${r.path} (${r.bytes} bytes, ${r.mode})`);
+        break;
+      }
       case 'approvals': {
         const d = await get('/api/approvals');
         console.log('');
