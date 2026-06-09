@@ -12,6 +12,7 @@ const store = require('./store');
 const vault = require('./vault');
 const google = require('./google');
 const notionApi = require('./notion');
+const twin = require('./twin');
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -48,11 +49,40 @@ function connections() {
     { id: 'calendar',  name: 'Google Calendar',method: 'OAuth',    live: google.hasToken() },
     { id: 'drive',     name: 'Google Drive',   method: 'OAuth',    live: google.hasToken() },
     { id: 'notion',    name: 'Notion',         method: 'API token',live: notionApi.hasToken() },
+    { id: 'twin',      name: 'Digital Twin',   method: 'Claude API', live: twin.hasKey() && twin.settings().enabled },
     // No data surface implemented for these yet — keyPresent is reported honestly,
     // but they are NOT claimed live until a real fetch exists.
     { id: 'anthropic', name: 'Claude API',     method: 'API key',  live: false, keyPresent: has('ANTHROPIC_API_KEY') },
     { id: 'billing',   name: 'AI Spend / Billing', method: 'API',  live: false, keyPresent: has('OPENROUTER_API_KEY') || has('ANTHROPIC_ADMIN_KEY') },
   ];
+}
+
+// ---- twin auto-reply: when the operator messages the twin's direct channel
+// via the normal chat API, the twin answers like any agent (over SSE).
+let twinOfflineNoticeSent = false;
+function touchTwinAgent(s) {
+  try { store.updateAgent(s.agentId, { status: 'online', statusLabel: 'Twin active', model: s.model, connectedVia: 'api' }); } catch {}
+}
+async function maybeTwinReply(b) {
+  try {
+    const s = twin.settings();
+    if (!s.enabled) return;
+    const ch = b.channel || 'warroom';
+    if (ch !== 'agent:' + s.agentId || b.role !== 'operator') return;
+    if (!twin.hasKey()) {
+      if (!twinOfflineNoticeSent) {
+        twinOfflineNoticeSent = true;
+        store.postMessage(ch, { from: s.agentId, role: 'agent', text: '(twin offline — set ANTHROPIC_API_KEY and restart the backend to bring me online)' });
+      }
+      return;
+    }
+    const history = store.getChannel(ch).slice(-12).map(m => ({ role: m.role, text: m.text }));
+    const text = await twin.reply(history, twin.liveContext(store, vault, integCache, b.text));
+    store.postMessage(ch, { from: s.agentId, role: 'agent', text });
+    touchTwinAgent(s);
+  } catch (e) {
+    try { store.postMessage(b.channel, { from: 'system', role: 'system', text: '⚠ twin error: ' + e.message }); } catch {}
+  }
 }
 
 const SSE = new Set();
@@ -125,7 +155,83 @@ const api = {
     try {
       const b = await readBody(req);
       sendJSON(res, 200, store.postMessage(b.channel || 'warroom', b));
+      maybeTwinReply(b); // fire-and-forget: the twin answers over SSE like any agent
     } catch (e) { sendJSON(res, 400, { error: e.message }); }
+  },
+
+  // ---- Digital Twin (model-backed Legacy Lew). Key stays server-side. ----
+  'GET /api/twin/status': (req, res) => {
+    const s = twin.settings();
+    sendJSON(res, 200, { enabled: s.enabled, online: s.enabled && twin.hasKey(), model: s.model, agentId: s.agentId, displayName: s.displayName });
+  },
+
+  'POST /api/twin/chat': async (req, res) => {
+    try {
+      const b = await readBody(req);
+      const s = twin.settings();
+      if (!s.enabled) return sendJSON(res, 400, { error: 'twin disabled in client.config.json' });
+      if (!twin.hasKey()) return sendJSON(res, 503, { error: 'twin offline — set ANTHROPIC_API_KEY in the environment' });
+      if (!b.text || !String(b.text).trim()) return sendJSON(res, 400, { error: 'text required' });
+      const ch = 'agent:' + s.agentId;
+      store.postMessage(ch, { from: b.from || 'lew', role: 'operator', text: String(b.text).trim() });
+      const history = store.getChannel(ch).slice(-12).map(m => ({ role: m.role, text: m.text }));
+      const text = await twin.reply(history, twin.liveContext(store, vault, integCache, b.text));
+      store.postMessage(ch, { from: s.agentId, role: 'agent', text });
+      touchTwinAgent(s);
+      sendJSON(res, 200, { reply: text, model: s.model });
+    } catch (e) { sendJSON(res, 502, { error: e.message }); }
+  },
+
+  // ---- Today's Brief: server-composed, every line from a real source ----
+  'GET /api/brief': (req, res) => {
+    const sections = [];
+    const pend = store.listApprovals().filter(a => a.state === 'pending');
+    sections.push({
+      id: 'approvals', title: 'Approvals waiting', tone: pend.length ? 'gold' : 'ok',
+      lines: pend.length ? pend.slice(0, 5).map(a => a.subject + ' — ' + a.by + ' (' + (a.risk || 'low') + ' risk)') : ['Queue clear — nothing needs you.'],
+    });
+    const agents = store.listAgents();
+    const working = agents.filter(a => a.status === 'working');
+    const online = agents.filter(a => a.status && a.status !== 'offline');
+    sections.push({
+      id: 'agents', title: 'Team', tone: 'cyan',
+      lines: online.length
+        ? working.map(a => a.name + ' — ' + (a.task || a.statusLabel)).concat([online.length + '/' + agents.length + ' agents online'])
+        : ['No agents connected yet.'],
+    });
+    try {
+      const v = vault.getVault();
+      if (v.ok) sections.push({ id: 'vault', title: 'Second Brain', tone: 'cyan',
+        lines: [v.stats.written7d + ' notes this week · ' + v.stats.notes + ' total'].concat(v.pulse.slice(0, 3).map(p => '“' + p.title + '” · ' + p.ago)) });
+      else sections.push({ id: 'vault', title: 'Second Brain', tone: 'mute', lines: ['Vault not found.'] });
+    } catch { sections.push({ id: 'vault', title: 'Second Brain', tone: 'mute', lines: ['Vault unavailable.'] }); }
+    const gm = integCache.gmail && integCache.gmail.data;
+    sections.push(google.hasToken()
+      ? { id: 'gmail', title: 'Inbox', tone: 'cyan', lines: gm && gm.connected ? [gm.unread + ' unread'].concat((gm.threads || []).filter(t => t.unread).slice(0, 3).map(t => t.from + ' — ' + t.subject)) : ['Connected — open Gmail in the dashboard to load.'] }
+      : { id: 'gmail', title: 'Inbox', tone: 'mute', lines: ['Gmail not connected.'] });
+    const cal = integCache.calendar && integCache.calendar.data;
+    sections.push(google.hasToken()
+      ? { id: 'calendar', title: 'Today', tone: 'cyan', lines: cal && cal.connected ? (cal.events.filter(e => e.day === 0).map(e => e.title + (e.loc ? ' · ' + e.loc : '')) .slice(0, 5) || []).concat(cal.events.filter(e => e.day === 0).length ? [] : ['No events today.']) : ['Connected — open Calendar in the dashboard to load.'] }
+      : { id: 'calendar', title: 'Today', tone: 'mute', lines: ['Calendar not connected.'] });
+    sendJSON(res, 200, { generatedAt: new Date().toISOString(), twin: { online: twin.hasKey() && twin.settings().enabled }, sections });
+  },
+
+  // ---- premium TTS proxy (ElevenLabs) — honest 503 until a key exists ----
+  'POST /api/tts': async (req, res) => {
+    try {
+      const key = (process.env.ELEVENLABS_API_KEY || '').trim();
+      if (!key) return sendJSON(res, 503, { error: 'premium voice not configured — set ELEVENLABS_API_KEY (browser voice still works)' });
+      const b = await readBody(req);
+      const voice = (process.env.ELEVEN_VOICE_ID || '21m00Tcm4TlvDq8ikWAM').trim();
+      const r = await fetch('https://api.elevenlabs.io/v1/text-to-speech/' + voice, {
+        method: 'POST',
+        headers: { 'xi-api-key': key, 'content-type': 'application/json' },
+        body: JSON.stringify({ text: String(b.text || '').slice(0, 800), model_id: 'eleven_turbo_v2_5' }),
+      });
+      if (!r.ok) return sendJSON(res, 502, { error: 'elevenlabs ' + r.status });
+      const buf = Buffer.from(await r.arrayBuffer());
+      send(res, 200, buf, { 'Content-Type': 'audio/mpeg' });
+    } catch (e) { sendJSON(res, 502, { error: e.message }); }
   },
 
   'GET /api/agents': (req, res) => sendJSON(res, 200, { agents: store.listAgents() }),
