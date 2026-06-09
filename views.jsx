@@ -235,6 +235,15 @@ function AgentChat({ agent }) {
           m.t))),
       React.createElement('div', { className: 'mc-composer' },
         React.createElement('input', { value: val, onChange: e => setVal(e.target.value), onKeyDown: e => e.key === 'Enter' && send(), placeholder: 'Message ' + agent.name + '…', 'aria-label': 'Message ' + agent.name }),
+        window.MCVoice && MCVoice.sttSupported && React.createElement('button', {
+          className: 'mc-composer__mic', title: 'Push to talk', 'aria-label': 'Push to talk',
+          onClick: (e) => MCVoice.pushToTalk(t => setVal(v => (v ? v + ' ' : '') + t), e.currentTarget),
+        }, React.createElement(Icon, { name: 'zap', size: 14 })),
+        window.MCVoice && React.createElement('button', {
+          className: 'mc-composer__mic', title: 'Speak replies aloud', 'aria-label': 'Speak replies aloud',
+          style: MCVoice.speakOn() ? { color: 'var(--acc)', borderColor: 'rgba(35,214,245,.4)' } : null,
+          onClick: (e) => { const on = MCVoice.toggleSpeak(); e.currentTarget.style.color = on ? 'var(--acc)' : ''; },
+        }, React.createElement(Icon, { name: 'megaphone', size: 14 })),
         React.createElement('button', { className: 'mc-composer__send', onClick: send, 'aria-label': 'Send' }, React.createElement(Icon, { name: 'send', size: 15 })))),
   );
 }
@@ -289,6 +298,10 @@ function WarRoom() {
       React.createElement('div', { className: 'mc-war__composer' },
         React.createElement('div', { className: 'mc-war__order' }, React.createElement(Icon, { name: 'command', size: 13 }), 'ORDER'),
         React.createElement('input', { value: val, onChange: e => setVal(e.target.value), onKeyDown: e => e.key === 'Enter' && send(), placeholder: 'Give an order — Sage routes it to the right agent…', 'aria-label': 'Send an order' }),
+        window.MCVoice && MCVoice.sttSupported && React.createElement('button', {
+          className: 'mc-composer__mic', title: 'Push to talk', 'aria-label': 'Push to talk',
+          onClick: (e) => MCVoice.pushToTalk(t => setVal(v => (v ? v + ' ' : '') + t), e.currentTarget),
+        }, React.createElement(Icon, { name: 'zap', size: 14 })),
         React.createElement('button', { className: 'mc-composer__send', onClick: send, 'aria-label': 'Send' }, React.createElement(Icon, { name: 'send', size: 15 })))),
     React.createElement('div', { className: 'mc-war__side' },
       React.createElement('div', { className: 'mc-war__sidepanel' },
