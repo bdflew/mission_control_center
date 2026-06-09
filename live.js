@@ -71,6 +71,10 @@
     return { messages, send, online };
   };
 
+  // ---- raw event fanout (Living Office, voice, companion subscribe here) ----
+  MCLive._evtSubs = new Set();
+  MCLive.onEvent = (cb) => { MCLive._evtSubs.add(cb); return () => MCLive._evtSubs.delete(cb); };
+
   // ---- SSE ----
   function openStream() {
     try {
@@ -78,6 +82,7 @@
       MCLive._es = es;
       es.onmessage = (e) => {
         let evt; try { evt = JSON.parse(e.data); } catch { return; }
+        MCLive._evtSubs.forEach(cb => { try { cb(evt); } catch {} });
         if (evt.type === 'chat') {
           const subs = MCLive._chatSubs[evt.channel];
           if (subs) subs.forEach(cb => { try { cb(evt.message); } catch {} });
@@ -231,6 +236,20 @@
     el.style.border = '1px solid ' + (live ? 'rgba(52,211,153,0.5)' : 'rgba(100,116,139,0.4)');
     el.style.color = live ? '#6EE7B7' : '#94A3B8';
     el.innerHTML = '<span style="width:7px;height:7px;border-radius:50%;background:' + c + ';box-shadow:0 0 8px ' + c + (live ? ';animation:mcPulse 2s infinite' : '') + '"></span>' + text;
+    companionButton();
+  }
+
+  // ---- companion pop-out (Phase 4): a small always-on-top Lew window ----
+  function companionButton() {
+    if (!(window.MC && MC.features && MC.features.companion)) return;
+    if (document.getElementById('mc-companion-btn')) return;
+    const b = document.createElement('button');
+    b.id = 'mc-companion-btn';
+    b.title = 'Pop out ' + ((window.MC.twin && MC.twin.displayName) || 'the companion');
+    b.textContent = '⧉ ' + ((window.MC.twin && MC.twin.displayName) || 'Companion');
+    b.style.cssText = 'position:fixed;right:14px;bottom:44px;z-index:120;font-family:var(--font-mono,monospace);font-size:10.5px;letter-spacing:.04em;padding:6px 11px;border-radius:999px;cursor:pointer;background:rgba(13,20,36,0.85);border:1px solid rgba(35,214,245,0.35);color:#9ddcEA;backdrop-filter:blur(8px);';
+    b.onclick = () => window.open('companion.html', 'mcCompanion', 'width=380,height=620,resizable=yes');
+    document.body.appendChild(b);
   }
 
   // ---- boot ----
