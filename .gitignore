@@ -1,0 +1,18 @@
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Node (only if you later add a build step / self-host the libraries)
+node_modules/
+npm-debug.log*
+yarn-error.log*
+dist/
+build/
+
+# Local env / secrets — never commit real OAuth or API credentials
+.env
+.env.*
+*.local
