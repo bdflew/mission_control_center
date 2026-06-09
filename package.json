@@ -10,7 +10,8 @@
   "scripts": {
     "start": "node server/server.js",
     "live": "node server/server.js",
-    "mcp": "node server/mcp.js"
+    "mcp": "node server/mcp.js",
+    "google-auth": "node server/oauth-google.js"
   },
   "engines": {
     "node": ">=18"

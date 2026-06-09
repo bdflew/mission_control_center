@@ -9,7 +9,7 @@ function IntegHeader({ logo, grad, name, acct, status }) {
         React.createElement('div', { className: 'mc-integ__name' }, name),
         React.createElement('div', { className: 'mc-integ__acct' }, acct))),
     React.createElement('div', { style: { display: 'flex', gap: 9, alignItems: 'center' } },
-      React.createElement('span', { className: 'mc-chip good' }, React.createElement('span', { className: 'dot' }), status || 'Connected'),
+      React.createElement('span', { className: 'mc-chip ' + (String(status || 'Connected').indexOf('Connected') === 0 ? 'good' : 'slate') }, React.createElement('span', { className: 'dot' }), status || 'Connected'),
       React.createElement(Btn, { variant: 'ghost', size: 'sm', icon: 'cog' }, 'Manage')),
   );
 }
@@ -17,13 +17,17 @@ function IntegHeader({ logo, grad, name, acct, status }) {
 // ===================== GMAIL =====================
 function GmailPage({ onAction }) {
   const G = window.MC.gmail;
-  const [active, setActive] = useSi(G.threads[0].id);
+  const live = G.status === 'connected';
+  const [active, setActive] = useSi(G.threads[0] && G.threads[0].id);
   const [stars, setStars] = useSi(() => Object.fromEntries(G.threads.map(t => [t.id, t.star])));
   const [read, setRead] = useSi({});
   const [frames, setFrames] = useSi(false);
   const [reframe, setReframe] = useSi(null);
-  const thread = G.threads.find(t => t.id === active);
+  // live data can replace the thread list under us — fall back to the first real thread
+  const thread = G.threads.find(t => t.id === active) || G.threads[0];
   const open = (id) => { setActive(id); setRead(r => ({ ...r, [id]: true })); };
+  if (!thread) return React.createElement('div', { className: 'mc-integ fade-up' },
+    React.createElement(IntegHeader, { logo: 'message-square', grad: 'linear-gradient(145deg,#EA4335,#FBBC05)', name: 'Gmail', acct: G.account, status: live ? 'Connected · inbox empty' : 'Not connected' }));
   const body = (window.MC.gmailThread[active] || [{ from: thread.from.split(' · ')[0], grad: thread.grad, time: thread.time, body: thread.snippet + '\n\n— sent from ' + G.account }]);
   return React.createElement('div', { className: 'mc-integ fade-up' },
     React.createElement('div', { className: 'mc-integ__bar' },
@@ -33,7 +37,7 @@ function GmailPage({ onAction }) {
           React.createElement('div', { className: 'mc-integ__name' }, 'Gmail'),
           React.createElement('div', { className: 'mc-integ__acct' }, G.account))),
       React.createElement('div', { style: { display: 'flex', gap: 9, alignItems: 'center' } },
-        React.createElement('span', { className: 'mc-chip good' }, React.createElement('span', { className: 'dot' }), G.unread + ' unread · Connected'),
+        React.createElement('span', { className: 'mc-chip ' + (live ? 'good' : 'slate') }, React.createElement('span', { className: 'dot' }), live ? (G.unread + ' unread · Connected') : 'Sample data · not connected'),
         React.createElement(Btn, { variant: 'ghost', size: 'sm', icon: 'corner-down-right', onClick: () => setFrames(true) }, 'Response Frameworks'))),
     React.createElement('div', { className: 'mc-mail' },
       React.createElement('div', { className: 'mc-maillist' },
@@ -106,13 +110,21 @@ function FrameworksModal({ onClose }) {
 // ===================== CALENDAR =====================
 function CalendarPage({ onAction }) {
   const C = window.MC.calendar;
+  const live = C.status === 'connected';
   const startH = C.hours[0], endH = C.hours[C.hours.length - 1];
   const span = endH - startH;
   const pxPerHr = 48;
-  const nowTop = (14.3 - startH) * pxPerHr;
-  const [events, setEvents] = useSi(() => { try { return JSON.parse(localStorage.getItem('mc_cal_events')) || C.events; } catch (e) { return C.events; } });
+  const nowTop = ((C.nowHour || 14.3) - startH) * pxPerHr;
+  const [events, setEvents] = useSi(() => { if (C.live) return C.events; try { return JSON.parse(localStorage.getItem('mc_cal_events')) || C.events; } catch (e) { return C.events; } });
   const [modal, setModal] = useSi(null); // {day,start}
-  const persist = (next) => { setEvents(next); try { localStorage.setItem('mc_cal_events', JSON.stringify(next)); } catch (e) {} };
+  // when the real calendar lands (or refreshes), show it — sample/local seeds step aside
+  React.useEffect(() => {
+    const sync = () => { if (window.MC.calendar.live) setEvents(window.MC.calendar.events); };
+    sync();
+    window.addEventListener('mc:live', sync);
+    return () => window.removeEventListener('mc:live', sync);
+  }, []);
+  const persist = (next) => { setEvents(next); if (!C.live) { try { localStorage.setItem('mc_cal_events', JSON.stringify(next)); } catch (e) {} } };
   const add = (ev) => { persist([...events, { ...ev, id: 'cu' + Date.now() }]); setModal(null); onAction && onAction('toast', (ev.by ? window.MC.agents.find(a => a.id === ev.by).name + ' scheduled' : 'Added') + ' “' + ev.title + '”.'); };
   const agentSchedule = () => { const slots = [{ day: 1, start: 11, end: 11.5, title: 'Sage — sync block', loc: 'auto', tone: 'cyan', by: 'sage' }, { day: 2, start: 10, end: 11, title: 'Faye — build review', loc: 'auto', tone: 'emerald', by: 'faye' }]; const s = slots[Math.floor(Math.random() * slots.length)]; add(s); };
   return React.createElement('div', { className: 'mc-integ fade-up' },
@@ -123,13 +135,13 @@ function CalendarPage({ onAction }) {
           React.createElement('div', { className: 'mc-integ__name' }, 'Google Calendar'),
           React.createElement('div', { className: 'mc-integ__acct' }, C.account))),
       React.createElement('div', { style: { display: 'flex', gap: 9, alignItems: 'center' } },
-        React.createElement('span', { className: 'mc-chip good' }, React.createElement('span', { className: 'dot' }), 'Connected'),
+        React.createElement('span', { className: 'mc-chip ' + (live ? 'good' : 'slate') }, React.createElement('span', { className: 'dot' }), live ? 'Connected' : 'Sample data · not connected'),
         React.createElement(Btn, { variant: 'ghost', size: 'sm', icon: 'zap', onClick: agentSchedule }, 'Let an agent schedule'),
         React.createElement(Btn, { variant: 'cyan', size: 'sm', icon: 'plus', onClick: () => setModal({ day: 0, start: 9 }) }, 'Add event'))),
     React.createElement('div', { className: 'mc-cal' },
       React.createElement('div', { className: 'mc-cal__grid' },
         React.createElement('div', { className: 'mc-cal__corner' }),
-        ...C.days.map((d, i) => React.createElement('div', { key: d, className: 'mc-cal__dayhead' + (i === 0 ? ' today' : '') }, i === 0 ? React.createElement(React.Fragment, null, 'Wed', React.createElement('span', null, '10')) : d)),
+        ...C.days.map((d, i) => { const parts = String(d).split(' '); return React.createElement('div', { key: d, className: 'mc-cal__dayhead' + (i === 0 ? ' today' : '') }, i === 0 ? React.createElement(React.Fragment, null, parts[0], React.createElement('span', null, parts[1] || '')) : d); }),
         React.createElement('div', { className: 'mc-cal__hours' },
           ...C.hours.slice(0, -1).map(h => React.createElement('div', { key: h, className: 'mc-cal__hr' }, (h > 12 ? h - 12 : h) + (h >= 12 ? 'p' : 'a')))),
         ...C.days.map((d, di) => React.createElement('div', { key: di, className: 'mc-cal__col', style: { minHeight: span * pxPerHr }, onClick: (e) => { const rect = e.currentTarget.getBoundingClientRect(); const hr = Math.max(startH, Math.min(endH - 1, Math.round((e.clientY - rect.top) / pxPerHr) + startH)); setModal({ day: di, start: hr }); } },
@@ -183,11 +195,12 @@ function CalEventModal({ init, onClose, onAdd }) {
 // ===================== DRIVE =====================
 function DrivePage() {
   const D = window.MC.drive;
+  const live = D.status === 'connected';
   const [filter, setFilter] = useSi('all');
   const kinds = ['all', 'folder', 'doc', 'sheet', 'pdf', 'image', 'video'];
   const shown = D.files.filter(f => filter === 'all' || f.kind === filter);
   return React.createElement('div', { className: 'mc-integ fade-up' },
-    React.createElement(IntegHeader, { logo: 'folder-sync', grad: 'linear-gradient(145deg,#1FA463,#FFCF63)', name: 'Google Drive', acct: D.status === 'connected' ? window.MC.gmail.account : '', status: 'Connected' }),
+    React.createElement(IntegHeader, { logo: 'folder-sync', grad: 'linear-gradient(145deg,#1FA463,#FFCF63)', name: 'Google Drive', acct: live ? (D.account || '') : '', status: live ? 'Connected' : 'Sample data · not connected' }),
     React.createElement('div', { className: 'mc-drive__bar' },
       React.createElement('div', { className: 'mc-art__filters' },
         ...kinds.map(k => React.createElement('button', { key: k, className: 'mc-art__filter' + (filter === k ? ' is-active' : ''), onClick: () => setFilter(k) }, k))),
@@ -207,10 +220,11 @@ function DrivePage() {
 // ===================== NOTION =====================
 function NotionPage() {
   const N = window.MC.notion;
+  const live = N.status === 'connected';
   const [activeKid, setActiveKid] = useSi('Q3 Offer');
   const P = N.page;
   return React.createElement('div', { className: 'mc-integ fade-up' },
-    React.createElement(IntegHeader, { logo: 'box', grad: 'linear-gradient(145deg,#2F2F2F,#000)', name: 'Notion', acct: N.workspace + ' workspace', status: 'Connected' }),
+    React.createElement(IntegHeader, { logo: 'box', grad: 'linear-gradient(145deg,#2F2F2F,#000)', name: 'Notion', acct: N.workspace + ' workspace', status: live ? 'Connected' : 'Sample data · not connected' }),
     React.createElement('div', { className: 'mc-notion' },
       React.createElement('div', { className: 'mc-notion__side' },
         React.createElement('div', { className: 'mc-notion__ws' },

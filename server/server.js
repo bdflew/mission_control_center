@@ -10,6 +10,8 @@ const url = require('url');
 const config = require('./config');
 const store = require('./store');
 const vault = require('./vault');
+const google = require('./google');
+const notionApi = require('./notion');
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -41,12 +43,15 @@ function connections() {
   const has = n => Boolean(process.env[n] && process.env[n].trim());
   return [
     { id: 'obsidian',  name: 'Obsidian Vault', method: 'Local FS', live: fs.existsSync(config.vaultDir) },
-    { id: 'gmail',     name: 'Gmail',          method: 'OAuth',    live: has('GOOGLE_OAUTH_TOKEN') },
-    { id: 'calendar',  name: 'Google Calendar',method: 'OAuth',    live: has('GOOGLE_OAUTH_TOKEN') },
-    { id: 'drive',     name: 'Google Drive',   method: 'OAuth',    live: has('GOOGLE_OAUTH_TOKEN') },
-    { id: 'notion',    name: 'Notion',         method: 'API token',live: has('NOTION_TOKEN') },
-    { id: 'anthropic', name: 'Claude API',     method: 'API key',  live: has('ANTHROPIC_API_KEY') },
-    { id: 'billing',   name: 'AI Spend / Billing', method: 'API',  live: has('OPENROUTER_API_KEY') || has('ANTHROPIC_ADMIN_KEY') },
+    // "live" means the data path is implemented AND authorized — never just "a key exists".
+    { id: 'gmail',     name: 'Gmail',          method: 'OAuth',    live: google.hasToken() },
+    { id: 'calendar',  name: 'Google Calendar',method: 'OAuth',    live: google.hasToken() },
+    { id: 'drive',     name: 'Google Drive',   method: 'OAuth',    live: google.hasToken() },
+    { id: 'notion',    name: 'Notion',         method: 'API token',live: notionApi.hasToken() },
+    // No data surface implemented for these yet — keyPresent is reported honestly,
+    // but they are NOT claimed live until a real fetch exists.
+    { id: 'anthropic', name: 'Claude API',     method: 'API key',  live: false, keyPresent: has('ANTHROPIC_API_KEY') },
+    { id: 'billing',   name: 'AI Spend / Billing', method: 'API',  live: false, keyPresent: has('OPENROUTER_API_KEY') || has('ANTHROPIC_ADMIN_KEY') },
   ];
 }
 
@@ -55,6 +60,18 @@ store.bus.on('event', evt => {
   const line = `data: ${JSON.stringify(evt)}\n\n`;
   for (const res of SSE) { try { res.write(line); } catch {} }
 });
+
+// Integration responses are cached briefly so dashboard refreshes don't hammer APIs.
+const integCache = {};
+async function cached(key, ttlMs, force, fetcher, res) {
+  try {
+    const c = integCache[key];
+    if (!force && c && Date.now() - c.at < ttlMs) return sendJSON(res, 200, c.data);
+    const data = await fetcher();
+    if (data && data.connected) integCache[key] = { at: Date.now(), data };
+    sendJSON(res, 200, data);
+  } catch (e) { sendJSON(res, 502, { connected: true, error: e.message }); }
+}
 
 const api = {
   'GET /api/health': (req, res) => sendJSON(res, 200, { ok: true, ts: new Date().toISOString() }),
@@ -86,6 +103,18 @@ const api = {
       sendJSON(res, 200, { ok: true, ...r });
     } catch (e) { sendJSON(res, 400, { error: e.message }); }
   },
+
+  // Live integrations (all read-only). Honest: each returns { connected:false }
+  // until its credential exists — `npm run google-auth` for the Google three,
+  // NOTION_TOKEN in the environment for Notion.
+  'GET /api/gmail': (req, res) =>
+    cached('gmail', 60000, req._q.force === '1', () => google.gmail(Math.min(25, parseInt(req._q.max || '10', 10) || 10)), res),
+  'GET /api/calendar': (req, res) =>
+    cached('calendar', 120000, req._q.force === '1', () => google.calendar(4), res),
+  'GET /api/drive': (req, res) =>
+    cached('drive', 120000, req._q.force === '1', () => google.drive(12), res),
+  'GET /api/notion': (req, res) =>
+    cached('notion', 120000, req._q.force === '1', () => notionApi.notion(), res),
 
   'GET /api/chat': (req, res) => {
     const channel = req._q.channel || 'warroom';

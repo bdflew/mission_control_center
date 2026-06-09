@@ -42,11 +42,20 @@ A running record of what's wired, what's verified, and what's left. Kratos doctr
 - [x] `bin/mc` + MCP round-trip confirmed against the running backend
 - [x] Browser loads LIVE with real vault count (see verification run)
 
-## Still pending Lew's credentials (honest, labeled in UI)
-- [ ] Gmail / Calendar / Drive — Google OAuth 2.0 (`GOOGLE_OAUTH_TOKEN`)
-- [ ] Notion — integration token (`NOTION_TOKEN`)
-- [ ] AI spend / billing — OpenRouter or Anthropic admin key
-- [ ] Agent → vault *write* path (intentionally gated; design with Lew before enabling)
+## Integrations — ALL FOUR code-complete, awaiting only Lew's credentials
+- [x] `server/google.js` — Gmail + Calendar + Drive (all read-only), token refresh, exact UI shapes
+- [x] `server/notion.js` — Notion workspace/sidebar/page-blocks (read-only), exact UI shape
+- [x] `server/oauth-google.js` — one-time loopback OAuth (`npm run google-auth`), ONE consent covers all three Google scopes
+- [x] Routes: `GET /api/gmail` `/api/calendar` `/api/drive` `/api/notion` (cached; honest `connected:false` until authorized)
+- [x] Connection reporting: "live" = data path implemented AND authorized — never just "a key exists" (anthropic/billing report `keyPresent` honestly, not live)
+- [x] `live.js` patches all four surfaces from the backend when each connector is live
+- [x] UI honesty: Gmail/Calendar/Drive/Notion pages show real status chips; no hardcoded "Connected"; empty-state guards; Calendar real "today"/now-line
+- [x] Verified (debug sweep): 32 REST/SSE/CLI/MCP/persistence checks + 14 mock-API shape tests + connector flip simulation — see docs/DEBUG_REPORT.md
+- [ ] Lew: Google → enable Gmail+Calendar+Drive APIs, Desktop-app OAuth client, `npm run google-auth`
+- [ ] Lew: Notion → integration token in env (`NOTION_TOKEN`), share pages with the integration
+
+## Still pending (honest, labeled in UI)
+- [ ] AI spend / billing — OpenRouter or Anthropic admin key (no fetch implemented yet — connector will NOT claim live)
 - [ ] Auth layer if the backend is ever exposed beyond localhost
 
 ## Next gates (need Lew's approval / decision)

@@ -138,6 +138,47 @@
     try { const v = await get('/api/vault?force=1'); patchVault(v); } catch {}
   }
 
+  // Live integrations — each only patches window.MC when the backend reports a
+  // real authorized connection with real data. Until then the de-faked
+  // "Sample data · not connected" state stands. Nothing is ever fabricated.
+  async function refreshGmail() {
+    try {
+      const g = await get('/api/gmail');
+      if (!g || !g.connected || !Array.isArray(g.threads)) return;
+      window.MC.gmail = { account: g.account, status: 'connected', unread: g.unread || 0, threads: g.threads };
+      window.MC.gmailThread = {}; // bodies render from real snippets until full-read is wired
+      window.dispatchEvent(new Event('mc:live'));
+    } catch {}
+  }
+  async function refreshCalendar() {
+    try {
+      const c = await get('/api/calendar');
+      if (!c || !c.connected || !Array.isArray(c.events)) return;
+      window.MC.calendar = { status: 'connected', account: c.account || '', today: c.today, hours: c.hours, days: c.days, events: c.events, nowHour: c.nowHour, live: true };
+      window.dispatchEvent(new Event('mc:live'));
+    } catch {}
+  }
+  async function refreshDrive() {
+    try {
+      const d = await get('/api/drive');
+      if (!d || !d.connected || !Array.isArray(d.files)) return;
+      window.MC.drive = { status: 'connected', account: d.account || '', used: d.used, usedLabel: d.usedLabel, files: d.files };
+      window.dispatchEvent(new Event('mc:live'));
+    } catch {}
+  }
+  async function refreshNotion() {
+    try {
+      const n = await get('/api/notion');
+      if (!n || !n.connected || !Array.isArray(n.sidebar)) return;
+      window.MC.notion = { status: 'connected', workspace: n.workspace, sidebar: n.sidebar, page: n.page, pagesShared: n.pagesShared };
+      window.dispatchEvent(new Event('mc:live'));
+    } catch {}
+  }
+  MCLive.refreshGmail = refreshGmail;
+  MCLive.refreshCalendar = refreshCalendar;
+  MCLive.refreshDrive = refreshDrive;
+  MCLive.refreshNotion = refreshNotion;
+
   function patchVault(v) {
     const MC = window.MC;
     if (!v || !v.ok) return;
@@ -168,6 +209,11 @@
       }));
     }
     MC.connections = b.connections || [];
+    const liveConn = id => { const c = MC.connections.find(x => x.id === id); return c && c.live; };
+    if (liveConn('gmail')) refreshGmail();
+    if (liveConn('calendar')) refreshCalendar();
+    if (liveConn('drive')) refreshDrive();
+    if (liveConn('notion')) refreshNotion();
     recomputeHeroMetrics();
   }
 
