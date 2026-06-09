@@ -1,0 +1,44 @@
+{
+  "$comment": "Mission Control client template config — ALL client-specific values live here, in .env, and in assets/. No secrets in this file (PRD requirement C1).",
+  "brand": {
+    "name": "Legacy Automations",
+    "product": "Mission Control",
+    "tagline": "AI Operating Systems",
+    "logo": "assets/la-logo-primary.png",
+    "symbol": "assets/la-symbol.png",
+    "colors": {
+      "accent": "#23D6F5",
+      "accent2": "#6FE8FB",
+      "accentDeep": "#0E8FA8",
+      "gold": "#E8C766"
+    }
+  },
+  "operator": {
+    "id": "lew",
+    "name": "Lew",
+    "role": "Founder · CEO",
+    "avatar": "assets/avatar-headshot.png"
+  },
+  "agents": [
+    { "id": "sage",   "sprite": "assets/char-sage.png",   "model3d": null, "deskSlot": 0, "voice": { "rate": 1.02, "pitch": 1.08 } },
+    { "id": "kratos", "sprite": "assets/char-kratos.png", "model3d": null, "deskSlot": 1, "voice": { "rate": 0.95, "pitch": 0.82 } },
+    { "id": "faye",   "sprite": "assets/char-faye.png",   "model3d": null, "deskSlot": 2, "voice": { "rate": 1.06, "pitch": 1.15 } },
+    { "id": "chloe",  "sprite": null,                      "model3d": null, "deskSlot": 3, "voice": { "rate": 1.0,  "pitch": 1.2 } },
+    { "id": "lew",    "sprite": "assets/char-lew.png",    "model3d": null, "deskSlot": 4, "voice": { "rate": 1.0,  "pitch": 0.92 } }
+  ],
+  "twin": {
+    "enabled": true,
+    "agentId": "lew",
+    "displayName": "Legacy Lew",
+    "persona": "prompts/twin.md",
+    "model": "claude-sonnet-4-6",
+    "maxTokens": 1024
+  },
+  "features": {
+    "livingOffice": true,
+    "voice": true,
+    "companion": true,
+    "integrations": ["gmail", "calendar", "drive", "notion"]
+  },
+  "vault": { "label": "Second Brain" }
+}
