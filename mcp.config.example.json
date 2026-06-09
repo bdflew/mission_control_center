@@ -1,0 +1,13 @@
+{
+  "_comment": "Register Mission Control as an MCP server in any MCP client (Claude Code, Claude Desktop, etc.). For Claude Code, add this under the top-level \"mcpServers\" key of ~/.claude.json or a project .mcp.json. Replace the cwd path with wherever this repo lives. The backend (npm start) must be running for the tools to work.",
+  "mcpServers": {
+    "mission-control": {
+      "command": "node",
+      "args": ["server/mcp.js"],
+      "cwd": "/Users/aaronlewis/Desktop/legacy-mission-control",
+      "env": {
+        "MC_API": "http://127.0.0.1:8754"
+      }
+    }
+  }
+}

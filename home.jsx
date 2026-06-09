@@ -5,16 +5,22 @@ function HeroStrip() {
   const op = window.MC.operator;
   const h = new Date().getHours();
   const tod = h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening';
+  const agents = window.MC.agents || [];
+  const online = window.MCLive ? window.MCLive.onlineCount() : 0;
+  const working = agents.filter(a => a.status === 'working').length;
+  const approvals = (window.MC.approvals || []).length;
+  const live = !!(window.MCLive && window.MCLive.online);
+  const notes = (window.MC.obsidian && window.MC.obsidian.stats) ? window.MC.obsidian.stats.notes : 0;
   return React.createElement('div', { className: 'mc-hero fade-up' },
     React.createElement('div', null,
       React.createElement('div', { className: 'mc-hero__greet' }, `Good ${tod}, `, React.createElement('span', { className: 'accent' }, op.name + '.')),
       React.createElement('p', { className: 'mc-hero__sum' },
-        'Your AI team is ', React.createElement('b', null, 'mid-build'), ' — ',
-        React.createElement('b', null, '4 agents online'), ', ', React.createElement('b', null, '7 tasks moving'), ', and ',
-        React.createElement('b', null, '3 approvals'), ' waiting on your sign-off. Sage is routing while you’re at work.')),
+        online > 0
+          ? [React.createElement('b', { key: 'o' }, online + ' of ' + agents.length + ' agents online'), ', ', React.createElement('b', { key: 'w' }, working + ' working'), ', and ', React.createElement('b', { key: 'a' }, approvals + ' approval' + (approvals === 1 ? '' : 's')), ' waiting on your sign-off.']
+          : 'Your command center is wired to the live backend and your vault. No agents have reported in yet — connect them via MCP or CLI (see the handoff) and their live status appears here.')),
     React.createElement('div', { className: 'mc-hero__meta' },
-      React.createElement('span', { className: 'mc-chip cyan' }, React.createElement('span', { className: 'dot' }), 'BUILD · QA HARDENING'),
-      React.createElement('span', { className: 'mc-chip good' }, React.createElement('span', { className: 'dot' }), 'ALL SYSTEMS NOMINAL')),
+      React.createElement('span', { className: 'mc-chip ' + (live ? 'good' : '') }, React.createElement('span', { className: 'dot' }), live ? 'LIVE · VAULT CONNECTED' : 'DEMO · BACKEND OFFLINE'),
+      React.createElement('span', { className: 'mc-chip cyan' }, React.createElement('span', { className: 'dot' }), notes + ' NOTES IN VAULT')),
   );
 }
 
@@ -43,7 +49,7 @@ function AgentGrid({ variant, onNav }) {
     return React.createElement('div', { className: 'mc-panel fade-up' },
       React.createElement('div', { className: 'mc-phead' },
         React.createElement('div', { className: 'mc-ptitle' }, React.createElement('i', null, React.createElement(Icon, { name: 'cpu', size: 15 })), 'Agent Roster'),
-        React.createElement('span', { className: 'mc-chip good' }, React.createElement('span', { className: 'dot' }), '4 ONLINE')),
+        React.createElement('span', { className: 'mc-chip ' + (window.MCLive && window.MCLive.onlineCount() ? 'good' : '') }, React.createElement('span', { className: 'dot' }), (window.MCLive ? window.MCLive.onlineCount() : 0) + ' ONLINE')),
       React.createElement('div', { className: 'mc-roster' },
         ...A.map(a => React.createElement('button', { key: a.id, className: 'mc-roster__row', style: { '--ag-acc': a.accent }, onClick: () => onNav('agent:' + a.id) },
           React.createElement(AgentAv, { agent: a, size: 34 }),
@@ -57,7 +63,7 @@ function AgentGrid({ variant, onNav }) {
   return React.createElement('div', { className: 'mc-panel fade-up' },
     React.createElement('div', { className: 'mc-phead' },
       React.createElement('div', { className: 'mc-ptitle' }, React.createElement('i', null, React.createElement(Icon, { name: 'cpu', size: 15 })), 'Agent Status'),
-      React.createElement('span', { className: 'mc-chip good' }, React.createElement('span', { className: 'dot' }), '4 ONLINE')),
+      React.createElement('span', { className: 'mc-chip ' + (window.MCLive && window.MCLive.onlineCount() ? 'good' : '') }, React.createElement('span', { className: 'dot' }), (window.MCLive ? window.MCLive.onlineCount() : 0) + ' ONLINE')),
     React.createElement('div', { className: 'mc-agents' },
       ...A.map(a => React.createElement('button', {
         key: a.id, className: 'mc-agentcard',
@@ -103,9 +109,15 @@ function MissionCard() {
 
 // ---- Approvals queue (interactive) ----
 function ApprovalsQueue() {
-  const [items, setItems] = useStateH(window.MC.approvals);
+  const [items, setItems] = useStateH(() => window.MC.approvals || []);
   const [flash, setFlash] = useStateH(null);
-  const resolve = (id, ok) => { setFlash({ id, ok }); setTimeout(() => { setItems(p => p.filter(x => x.id !== id)); setFlash(null); }, 360); };
+  // keep in sync with live approvals (live.js reassigns MC.approvals on SSE events)
+  useEffectH(() => { setItems(window.MC.approvals || []); }, [window.MC.approvals]);
+  const resolve = (id, ok) => {
+    setFlash({ id, ok });
+    if (window.MCLive && window.MCLive.online) window.MCLive.resolveApproval(id, ok ? 'approve' : 'hold');
+    setTimeout(() => { setItems(p => p.filter(x => x.id !== id)); setFlash(null); }, 360);
+  };
   const riskChip = { low: 'good', med: 'gold', high: 'crimson' };
   return React.createElement('div', { className: 'mc-panel fade-up' },
     React.createElement('div', { className: 'mc-phead' },
@@ -115,7 +127,7 @@ function ApprovalsQueue() {
       ? React.createElement('div', { className: 'mc-approve__done' }, React.createElement(Icon, { name: 'check-circle', size: 26 }), React.createElement('div', null, 'Queue clear. Nothing waiting on you.'))
       : React.createElement('div', { className: 'mc-approve' },
         ...items.map(a => {
-          const by = window.MC.agents.find(x => x.id === a.by);
+          const by = window.MC.agents.find(x => x.id === a.by) || { name: a.by || 'system', avatarGrad: 'linear-gradient(145deg,#475569,#94A3B8)' };
           const f = flash && flash.id === a.id;
           return React.createElement('div', { key: a.id, className: 'mc-approve__row', style: f ? { opacity: 0, transform: 'translateX(' + (flash.ok ? '' : '-') + '12px)' } : null },
             React.createElement('div', { className: 'mc-approve__top' },
@@ -202,34 +214,28 @@ function Artifacts() {
 
 // ---- War room mini ----
 function WarRoomMini({ onNav }) {
-  const [msgs, setMsgs] = useStateH(() => window.MC.warRoomSeed.slice(-4));
+  const { messages, send: postMsg } = window.MCLive.useChannel('warroom');
   const [val, setVal] = useStateH('');
   const feedRef = useRefH(null);
-  useEffectH(() => { if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight; }, [msgs]);
-  const send = () => {
-    if (!val.trim()) return;
-    const t = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-    setMsgs(p => [...p, { id: 'l' + Date.now(), from: 'lew', text: val, time: t }]);
-    const txt = val; setVal('');
-    setTimeout(() => {
-      setMsgs(p => [...p, { id: 's' + Date.now(), from: 'sage', text: 'Copied, Lew. Routing that now — I’ll have the team confirm in the War Room.', time: t }]);
-    }, 1100);
-  };
+  useEffectH(() => { if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight; }, [messages]);
+  const msgs = messages.slice(-6);
+  const send = () => { if (!val.trim()) return; postMsg('lew', val); setVal(''); };
   return React.createElement('div', { className: 'mc-panel fade-up', style: { display: 'flex', flexDirection: 'column' } },
     React.createElement('div', { className: 'mc-phead' },
       React.createElement('div', { className: 'mc-ptitle' }, React.createElement('i', null, React.createElement(Icon, { name: 'messages-square', size: 15 })), 'War Room'),
       React.createElement('button', { className: 'mc-link', onClick: () => onNav('warroom') }, 'Full channel', React.createElement(Icon, { name: 'arrow-right', size: 13 }))),
     React.createElement('div', { className: 'mc-warmini', style: { flex: 1 } },
       React.createElement('div', { className: 'mc-warmini__feed', ref: feedRef },
+        msgs.length === 0 && React.createElement('div', { style: { opacity: .7, fontSize: 12, fontFamily: 'var(--font-body)', color: 'var(--fg-3)', padding: '6px 2px' } }, 'No messages yet — this channel is live. Post here, or your team can post via MCP / CLI.'),
         ...msgs.map(mm => {
-          const who = mm.from === 'lew' ? window.MC.operator : window.MC.agents.find(x => x.id === mm.from);
+          const who = mm.from === 'lew' ? window.MC.operator : (window.MC.agents.find(x => x.id === mm.from) || { name: mm.from, accent: '#94A3B8', avatarGrad: 'linear-gradient(145deg,#475569,#94A3B8)' });
           const grad = mm.from === 'lew' ? 'linear-gradient(145deg,#A87B2E,#F3D27A)' : who.avatarGrad;
           return React.createElement('div', { key: mm.id, className: 'mc-msg' },
             React.createElement('div', { className: 'mc-msg__av', style: { background: grad } }, who.name[0]),
             React.createElement('div', { className: 'mc-msg__body' },
               React.createElement('div', { className: 'mc-msg__head' },
                 React.createElement('span', { className: 'mc-msg__name', style: { color: mm.from === 'lew' ? '#F3D27A' : who.accent } }, who.name),
-                React.createElement('span', { className: 'mc-msg__time' }, mm.time)),
+                React.createElement('span', { className: 'mc-msg__time' }, window.MCLive.fmtTime(mm.ts))),
               React.createElement('div', { className: 'mc-msg__txt' }, mm.text)));
         })),
       React.createElement('div', { className: 'mc-composer' },
@@ -259,7 +265,7 @@ function MemoryLoop({ onNav }) {
           React.createElement('div', { style: { fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--fg-3)' } }, s.d)),
         i < steps.length - 1 && React.createElement(Icon, { name: 'arrow-right', size: 12, style: { color: 'var(--fg-3)', transform: 'rotate(90deg)', opacity: .5 } })))),
     React.createElement('div', { style: { marginTop: 12, padding: '9px 12px', borderRadius: 10, background: 'rgba(43,216,160,0.08)', border: '1px solid rgba(43,216,160,0.26)', fontFamily: 'var(--font-mono)', fontSize: 10.5, color: '#4fe3b5', display: 'flex', alignItems: 'center', gap: 8 } },
-      React.createElement('span', { className: 'pulse-dot good', style: { width: 7, height: 7 } }), '+63 notes written this week · system getting smarter'),
+      React.createElement('span', { className: 'pulse-dot good', style: { width: 7, height: 7 } }), ((window.MC.obsidian && window.MC.obsidian.stats ? window.MC.obsidian.stats.written7d : 0)) + ' notes written this week · system getting smarter'),
   );
 }
 

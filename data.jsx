@@ -141,11 +141,13 @@ MC.workspaces = [
 ];
 
 // ============ HERO METRICS ============
+// Honest defaults (shown only if the backend is offline). When live, live.js
+// recomputes these from real agent + vault + approval state.
 MC.heroMetrics = [
-  { id: 'agents', label: 'Active Agents', value: '4', suffix: '/ 4', glyph: 'users-round', spark: [3,4,3,4,4,4,4], tone: 'cyan', delta: 'all online' },
-  { id: 'tasks', label: 'Tasks In Progress', value: '7', glyph: 'list-checks', spark: [4,5,6,5,7,6,7], tone: 'cyan', delta: '+2 since 4pm' },
-  { id: 'approvals', label: 'Approvals Waiting', value: '3', glyph: 'shield-alert', spark: [1,2,2,3,2,3,3], tone: 'gold', delta: 'oldest 14m', featured: true },
-  { id: 'spend', label: "Today's AI Spend", value: '$4.27', glyph: 'wallet', spark: [0.8,1.5,2.2,2.9,3.4,3.9,4.27], tone: 'cyan', delta: '18% of daily cap' },
+  { id: 'agents', label: 'Agents Online', value: '0', suffix: '/ 4', glyph: 'users-round', spark: [0,0,0,0,0,0,0], tone: 'cyan', delta: 'none connected' },
+  { id: 'tasks', label: 'Agents Working', value: '0', glyph: 'list-checks', spark: [0,0,0,0,0,0,0], tone: 'cyan', delta: 'idle' },
+  { id: 'approvals', label: 'Approvals Waiting', value: '0', glyph: 'shield-alert', spark: [0,0,0,0,0,0,0], tone: 'gold', delta: 'queue clear', featured: true },
+  { id: 'notes', label: 'Vault Notes', value: '0', glyph: 'box', spark: [0,0,0,0,0,0,0], tone: 'cyan', delta: 'connect backend' },
 ];
 
 // ============ ACTIVE MISSION ============
@@ -163,46 +165,24 @@ MC.mission = {
 };
 
 // ============ APPROVALS QUEUE ============
-MC.approvals = [
-  { id: 'a1', subject: 'Q3 offer page — "From Chaos to Control"', by: 'chloe', risk: 'low', age: '14m', detail: 'New positioning + pricing copy for the Lead Recovery offer.' },
-  { id: 'a2', subject: 'Deploy Memory Galaxy to staging', by: 'faye', risk: 'med', age: '31m', detail: 'Pushes the new galaxy view behind a feature flag on staging.' },
-  { id: 'a3', subject: 'Rotate Codex API key', by: 'kratos', risk: 'high', age: '52m', detail: 'Security rotation — invalidates the current key immediately.' },
-];
+// Live from the backend (agents request approvals via MCP/CLI; you approve here).
+MC.approvals = [];
 
 // ============ DREAMING BRIEF ============
-MC.dreaming = [
-  { id: 'd1', text: "You're using 20% of your Gemini plan — downgrade could save $40/mo.", glyph: 'trending-down', time: '03:14', tone: 'cyan' },
-  { id: 'd2', text: '3 artifacts from yesterday are unsaved to the vault. Want me to file them?', glyph: 'save', time: '03:02', tone: 'gold' },
-  { id: 'd3', text: 'Kratos found a recurring race in ChatRoom — queued a repair for review.', glyph: 'shield-alert', time: '02:41', tone: 'crimson' },
-];
+// Populated by the nightly dream run once agents are connected. Empty until then.
+MC.dreaming = [];
 
 // ============ MEMORY PULSE (recent vault writes) ============
-MC.memoryPulse = [
-  { id: 'm1', title: 'Meta-Framework — Combined Agent OS', tag: 'synthesis', glow: 1.0, time: '6m ago' },
-  { id: 'm2', title: 'P1 ChatRoom race — root cause', tag: 'qa', glow: 0.82, time: '22m ago' },
-  { id: 'm3', title: 'Q3 positioning — chaos to control', tag: 'brand', glow: 0.61, time: '1h ago' },
-  { id: 'm4', title: 'Galaxy view — interaction spec', tag: 'build', glow: 0.4, time: '2h ago' },
-];
+// Live from your real Obsidian vault via live.js. Empty fallback if offline.
+MC.memoryPulse = [];
 
 // ============ RECENT ARTIFACTS ============
-MC.artifacts = [
-  { id: 'r1', kind: 'html', title: 'Mission Control home view', summary: 'Bento command center, 8 live panels, fully responsive.', by: 'faye', time: '8m' },
-  { id: 'r2', kind: 'doc', title: 'Q3 offer positioning draft', summary: 'From-chaos-to-control narrative for Lead Recovery.', by: 'chloe', time: '24m' },
-  { id: 'r3', kind: 'code', title: 'ChatRoom race condition fix', summary: 'Namespaced localStorage, guarded async write order.', by: 'kratos', time: '41m' },
-  { id: 'r4', kind: 'image', title: 'Memory Galaxy key visual', summary: 'Cinematic starfield concept for the wow screen.', by: 'faye', time: '1h' },
-  { id: 'r5', kind: 'video', title: 'System walkthrough — 90s', summary: 'Screen capture of the full operator flow.', by: 'mercury', time: '2h' },
-  { id: 'r6', kind: 'doc', title: 'Nightly dream brief — overnight', summary: 'Cost, unsaved artifacts, one repair surfaced.', by: 'sage', time: '5h' },
-];
+// Live: surfaced from your most-recent real vault notes. Empty fallback if offline.
+MC.artifacts = [];
 
 // ============ WAR ROOM SEED MESSAGES ============
-MC.warRoomSeed = [
-  { id: 'w1', from: 'sage', text: "Morning brief is in. 3 approvals waiting, P1 repair queued. Lew's at work until 6 — routing accordingly.", time: '08:02' },
-  { id: 'w2', from: 'kratos', text: 'On the ChatRoom race. Reproduced it — two writers hitting war_room storage at once. Fix + test by noon.', time: '08:05' },
-  { id: 'w3', from: 'faye', text: 'Galaxy view is at 78%. Orbit + zoom feel good. Want a Kratos review before I wire the note panel.', time: '09:31' },
-  { id: 'w4', from: 'sage', text: '@kratos take Faye’s galaxy build after the P1. @chloe the Q3 page is the only thing blocking Lew’s sign-off.', time: '09:33' },
-  { id: 'w5', from: 'chloe', text: 'Q3 page drafted — "From Chaos to Control." Tied every line to an outcome. Pushed for approval.', time: '10:12' },
-  { id: 'w6', from: 'lew', text: 'Good work team. Approving the offer page now. Kratos — security first, then help Faye land the galaxy.', time: '10:20' },
-];
+// The War Room is LIVE (backend chat store + SSE). No scripted seed messages.
+MC.warRoomSeed = [];
 
 // ============ MEMORY GALAXY — vault notes ============
 // clusters become spatial groups; recency drives brightness.

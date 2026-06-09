@@ -3,13 +3,39 @@
 The operator command center for the Legacy AI Operating System (Layer 5). A fully
 interactive, on-brand React prototype. Single entry point: **`Mission Control.html`**.
 
-## Run it
-Open `Mission Control.html` in any modern browser, or serve the folder:
+## Run it — LIVE (recommended)
+There is now a **zero-dependency Node backend** that makes the dashboard live: it reads your
+real Obsidian vault, runs the team chat, and exposes an MCP server + REST API + CLI for your
+AI agents. No `npm install` needed.
+
+```bash
+npm start            # or: node server/server.js
+# → http://127.0.0.1:8754/
 ```
-npx serve .
+
+Open that URL. A green **LIVE** badge (bottom-right) confirms the backend is connected and shows
+your real vault note count. Point your vault elsewhere with `VAULT_DIR=/path/to/vault npm start`.
+
+**What's genuinely live:** the Memory Galaxy, Memory Pulse and Obsidian page (your real vault —
+local files, no OAuth), the **War Room + per-agent chat** (persistent + real-time), agent status,
+and the approvals queue. All fake numbers/messages have been removed.
+
+**Still sample data (needs your credentials, clearly labeled in the UI):** Gmail, Calendar,
+Drive, Notion, AI-spend — see *Wiring the live connections* below.
+
+### Connect your AI team
+Your agents drive the dashboard via **MCP (best), REST, or CLI** — full guide in
+[`docs/HANDOFF_GO_LIVE.md`](docs/HANDOFF_GO_LIVE.md). Quick CLI test:
+```bash
+./bin/mc status
+./bin/mc say "Reporting in." --as kratos
 ```
-No build step — React + Babel are loaded from CDN and the `.jsx` files transpile in-browser.
-(For production, precompile the JSX and self-host the libraries.)
+Register the MCP server with any MCP client using [`mcp.config.example.json`](mcp.config.example.json).
+
+## Run it — DEMO (no backend)
+Open `Mission Control.html` / `index.html` directly, or `npx serve .`. You'll get a grey **DEMO**
+badge and honest empty states (no live data). React + Babel load from CDN; `.jsx` transpiles
+in-browser. For production, precompile the JSX and self-host the libraries.
 
 ## Structure
 | File | What it is |

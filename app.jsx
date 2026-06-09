@@ -40,6 +40,14 @@ function App() {
   const [rail, setRail] = useSt(t.railDefault);
   const [palette, setPalette] = useSt(false);
   const [toast, setToast] = useSt(null);
+  const [, bumpLive] = useSt(0);
+
+  // re-render whenever live.js patches window.MC with real backend data
+  useEf(() => {
+    const h = () => bumpLive(n => n + 1);
+    window.addEventListener('mc:live', h);
+    return () => window.removeEventListener('mc:live', h);
+  }, []);
 
   // apply tweaks → CSS vars on root
   useEf(() => {

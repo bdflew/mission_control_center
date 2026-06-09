@@ -15,4 +15,8 @@ build/
 # Local env / secrets — never commit real OAuth or API credentials
 .env
 .env.*
+!.env.example
 *.local
+
+# Runtime state (live chat, agent status, approvals) — machine-local, not source
+server/state/

@@ -94,17 +94,12 @@ MC.notion = {
 
 // ===================== OBSIDIAN VAULT =====================
 MC.obsidian = {
-  status: 'connected via MCP',
-  vault: 'Legacy Second Brain',
-  stats: { notes: 1284, links: 4117, clusters: 5, written7d: 63 },
-  recent: [
-    { id: 'o1', title: 'Meta-Framework — Combined Agent OS', tag: 'synthesis', ago: '6 min ago', by: 'Sage', glow: 1.0 },
-    { id: 'o2', title: 'P1 ChatRoom race — root cause', tag: 'qa', ago: '22 min ago', by: 'Kratos', glow: 0.92 },
-    { id: 'o3', title: 'Q3 positioning — chaos to control', tag: 'brand', ago: '1 hr ago', by: 'Chloe', glow: 0.85 },
-    { id: 'o4', title: 'Galaxy view — interaction spec', tag: 'build', ago: '2 hr ago', by: 'Faye', glow: 0.8 },
-    { id: 'o5', title: 'Lew approval patterns', tag: 'ops', ago: '3 hr ago', by: 'Sage', glow: 0.42 },
-    { id: 'o6', title: 'Cost review — daily cap $24', tag: 'ops', ago: '5 hr ago', by: 'Vulcan', glow: 0.65 },
-  ],
+  // LIVE: live.js fills status / stats / recent from your real local vault.
+  // These are honest fallbacks shown only if the backend is offline.
+  status: 'not connected — start the backend',
+  vault: 'Obsidian vault',
+  stats: { notes: 0, links: 0, clusters: 0, written7d: 0 },
+  recent: [],
   layers: [
     { n: '01', name: 'Stars', glyph: 'star', text: 'Every note becomes a point of light — your whole knowledge visible at a glance.' },
     { n: '02', name: 'Constellations', glyph: 'git-branch', text: 'Every link draws a line. Clusters reveal your real focus areas.' },

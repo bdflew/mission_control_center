@@ -1,0 +1,110 @@
+#!/usr/bin/env node
+// mc — Mission Control CLI. A thin wrapper over the live backend API so any
+// agent, script, cron job, or human can drive the dashboard from a terminal.
+// Every write appears live in the browser. Env: MC_API (default :8754).
+//
+//   mc status                          live snapshot
+//   mc read [--channel warroom] [-n 20]   read a channel
+//   mc say "text" --as sage [--channel warroom]   post a message
+//   mc set <agent> <status> [--task "..."] [--model "..."]   report status
+//   mc search "query" [-n 10]           search the vault
+//   mc note <path>                      print a vault note
+//   mc approvals                        list approvals
+//   mc ask "subject" --by kratos [--risk high] [--detail "..."]   request approval
+const API = (process.env.MC_API || 'http://127.0.0.1:8754').replace(/\/$/, '');
+
+function flag(args, name, short) {
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--' + name || (short && args[i] === short)) return args[i + 1];
+  }
+  return undefined;
+}
+function positionals(args) { return args.filter((a, i) => !a.startsWith('-') && !(i > 0 && args[i - 1].startsWith('-'))); }
+
+async function get(p) { const r = await fetch(API + p); return r.json(); }
+async function post(p, body) {
+  const r = await fetch(API + p, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status); return j;
+}
+
+async function main() {
+  const [cmd, ...rest] = process.argv.slice(2);
+  try {
+    switch (cmd) {
+      case 'status': {
+        const b = await get('/api/bootstrap');
+        const v = b.vault;
+        console.log('\n  MISSION CONTROL · LIVE\n');
+        console.log('  Vault   ', v.ok ? `${v.vault} — ${v.stats.notes} notes, ${v.stats.links} links, ${v.stats.written7d} touched this week` : 'NOT FOUND');
+        console.log('  Agents  ', b.agents.map(a => `${a.name}:${a.status}`).join('  '));
+        const pend = b.approvals.filter(a => a.state === 'pending');
+        console.log('  Approvals', pend.length ? pend.map(a => `[${a.risk}] ${a.subject}`).join(' | ') : 'none pending');
+        console.log('  Links   ', b.connections.map(c => `${c.name}:${c.live ? 'LIVE' : 'off'}`).join('  '), '\n');
+        break;
+      }
+      case 'read': {
+        const channel = flag(rest, 'channel') || 'warroom';
+        const n = parseInt(flag(rest, 'limit', '-n') || '20', 10);
+        const d = await get('/api/chat?channel=' + encodeURIComponent(channel));
+        console.log(`\n  #${channel}\n`);
+        for (const m of d.messages.slice(-n)) console.log(`  ${m.from.padEnd(8)} ${m.text}`);
+        console.log('');
+        break;
+      }
+      case 'say': {
+        const text = positionals(rest)[0];
+        const from = flag(rest, 'as') || 'lew';
+        const channel = flag(rest, 'channel') || 'warroom';
+        if (!text) throw new Error('usage: mc say "text" --as <agent>');
+        const m = await post('/api/chat', { channel, from, role: from === 'lew' ? 'operator' : 'agent', text });
+        console.log(`posted to #${channel} as ${from} (${m.id})`);
+        break;
+      }
+      case 'set': {
+        const [agent, status] = positionals(rest);
+        if (!agent) throw new Error('usage: mc set <agent> <status> [--task "..."]');
+        const r = await post('/api/agents/update', { id: agent, status, statusLabel: flag(rest, 'label'), task: flag(rest, 'task'), model: flag(rest, 'model'), connectedVia: 'cli' });
+        console.log(`${r.name}: ${r.status}${r.task ? ' — ' + r.task : ''}`);
+        break;
+      }
+      case 'search': {
+        const q = positionals(rest)[0];
+        const n = parseInt(flag(rest, 'limit', '-n') || '10', 10);
+        const v = await get('/api/vault');
+        const hits = v.notes.filter(x => (x.title + ' ' + x.excerpt).toLowerCase().includes((q || '').toLowerCase())).slice(0, n);
+        console.log(`\n  ${hits.length} hits for "${q}"\n`);
+        for (const h of hits) console.log(`  • ${h.title}\n    ${h.path}`);
+        console.log('');
+        break;
+      }
+      case 'note': {
+        const p = positionals(rest)[0];
+        const d = await get('/api/vault/note?path=' + encodeURIComponent(p || ''));
+        if (d.error) throw new Error(d.error);
+        console.log('\n' + d.content + '\n');
+        break;
+      }
+      case 'approvals': {
+        const d = await get('/api/approvals');
+        console.log('');
+        if (!d.approvals.length) console.log('  no approvals');
+        for (const a of d.approvals) console.log(`  [${a.state}] (${a.risk}) ${a.subject}  — by ${a.by}  ${a.id}`);
+        console.log('');
+        break;
+      }
+      case 'ask': {
+        const subject = positionals(rest)[0];
+        if (!subject) throw new Error('usage: mc ask "subject" --by <agent> [--risk high]');
+        const r = await post('/api/approvals', { subject, by: flag(rest, 'by') || 'system', risk: flag(rest, 'risk') || 'low', detail: flag(rest, 'detail') });
+        console.log(`approval requested: ${r.subject} (${r.id})`);
+        break;
+      }
+      default:
+        console.log('mc — Mission Control CLI\n  commands: status | read | say | set | search | note | approvals | ask\n  API: ' + API);
+    }
+  } catch (e) {
+    console.error('error:', e.message);
+    process.exit(1);
+  }
+}
+main();

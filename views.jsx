@@ -212,32 +212,27 @@ function AgentRole({ a }) {
 }
 
 function AgentChat({ agent }) {
-  const [msgs, setMsgs] = useS(() => AGENT_SEED_CHAT[agent.id] || []);
+  const { messages, send: postMsg } = window.MCLive.useChannel('agent:' + agent.id);
   const [val, setVal] = useS('');
-  const [typing, setTyping] = useS(false);
   const feedRef = useR(null);
-  useE(() => { if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight; }, [msgs, typing]);
-  const replies = [
-    'Understood, Lew. Logging that and acting on it now.',
-    'On it. I’ll confirm in the War Room when it’s done.',
-    'Good call — adjusting course. Want me to loop in the team?',
-    'Done. I’ll surface the result in your next brief.',
-  ];
-  const send = () => {
-    if (!val.trim()) return;
-    setMsgs(p => [...p, { me: true, t: val }]); setVal(''); setTyping(true);
-    setTimeout(() => { setTyping(false); setMsgs(p => [...p, { me: false, t: replies[Math.floor(Math.random() * replies.length)] }]); }, 1300);
-  };
+  useE(() => { if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight; }, [messages]);
+  const view = messages.map(m => ({ me: m.from === 'lew' || m.role === 'operator', t: m.text }));
+  // LIVE direct line. Lew's message posts to the agent's channel; the real agent
+  // (connected via MCP / CLI) reads it and replies. No scripted responses.
+  const send = () => { if (!val.trim()) return; postMsg('lew', val); setVal(''); };
+  const onlineNow = agent.status && agent.status !== 'offline';
   return React.createElement('div', { className: 'mc-tpanel' },
     React.createElement('div', { className: 'mc-phead' },
       React.createElement('div', { className: 'mc-ptitle' }, React.createElement('i', null, React.createElement(Icon, { name: 'message-square', size: 15 })), 'Direct Line · ' + agent.name),
-      React.createElement('span', { className: 'mc-chip ' + agent.theme }, React.createElement('span', { className: 'dot' }), 'ONLINE')),
+      React.createElement('span', { className: 'mc-chip ' + (onlineNow ? agent.theme : '') }, React.createElement('span', { className: 'dot' }), onlineNow ? 'ONLINE' : 'OFFLINE')),
     React.createElement('div', { className: 'mc-achat' },
       React.createElement('div', { className: 'mc-achat__feed', ref: feedRef },
-        ...msgs.map((m, i) => React.createElement('div', { key: i, className: 'mc-bubble ' + (m.me ? 'me' : 'them') },
+        view.length === 0 && React.createElement('div', { className: 'mc-bubble them', style: { opacity: .75 } },
+          React.createElement('div', { className: 'mc-bubble__meta' }, agent.name),
+          onlineNow ? 'Connected. Send a message — I read this channel live.' : 'Not connected yet. Connect ' + agent.name + ' via MCP or CLI (see the handoff) and messages here reach them live.'),
+        ...view.map((m, i) => React.createElement('div', { key: i, className: 'mc-bubble ' + (m.me ? 'me' : 'them') },
           React.createElement('div', { className: 'mc-bubble__meta' }, m.me ? 'You' : agent.name),
-          m.t)),
-        typing && React.createElement('div', { className: 'mc-bubble them' }, React.createElement('div', { className: 'mc-typing' }, React.createElement('span'), React.createElement('span'), React.createElement('span')))),
+          m.t))),
       React.createElement('div', { className: 'mc-composer' },
         React.createElement('input', { value: val, onChange: e => setVal(e.target.value), onKeyDown: e => e.key === 'Enter' && send(), placeholder: 'Message ' + agent.name + '…', 'aria-label': 'Message ' + agent.name }),
         React.createElement('button', { className: 'mc-composer__send', onClick: send, 'aria-label': 'Send' }, React.createElement(Icon, { name: 'send', size: 15 })))),
@@ -246,59 +241,33 @@ function AgentChat({ agent }) {
 
 // ============ WAR ROOM (full) ============
 function WarRoom() {
-  const [msgs, setMsgs] = useS(() => window.MC.warRoomSeed.slice());
+  const { messages, send: postMsg } = window.MCLive.useChannel('warroom');
   const [val, setVal] = useS('');
-  const [typing, setTyping] = useS(null);
   const feedRef = useR(null);
-  useE(() => { if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight; }, [msgs, typing]);
+  useE(() => { if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight; }, [messages]);
+  const msgs = messages;
+  const typing = null;
 
-  const fmtTime = () => new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
   const renderText = (t) => {
-    const parts = t.split(/(@\w+)/g);
+    const parts = String(t).split(/(@\w+)/g);
     return parts.map((p, i) => p.startsWith('@') ? React.createElement('span', { key: i, className: 'mention' }, p) : p);
   };
+  // LIVE: the order is posted to the team channel. Connected agents (via MCP /
+  // CLI) read it and reply for real — there are no scripted responses.
+  const send = () => { if (!val.trim()) return; postMsg('lew', val); setVal(''); };
 
-  const sendAs = (from, text) => setMsgs(p => [...p, { id: from + Date.now() + Math.random(), from, text, time: fmtTime() }]);
-
-  const send = () => {
-    if (!val.trim()) return;
-    const txt = val; sendAs('lew', txt); setVal('');
-    // Sage routes orders
-    setTyping('sage');
-    setTimeout(() => {
-      setTyping(null);
-      const lc = txt.toLowerCase();
-      let target = null;
-      if (/secur|repair|bug|qa|review|fix/.test(lc)) target = 'kratos';
-      else if (/build|ship|galaxy|code|feature/.test(lc)) target = 'faye';
-      else if (/brand|copy|offer|positioning|page/.test(lc)) target = 'chloe';
-      const tName = target ? window.MC.agents.find(a => a.id === target).name : null;
-      sendAs('sage', target
-        ? `Copied, Lew. Routing this to @${tName.toLowerCase()} — they’ll pick it up and report back here.`
-        : 'Got it, Lew. Logging this and distributing to the team. I’ll confirm assignments shortly.');
-      if (target) {
-        setTyping(target);
-        setTimeout(() => { setTyping(null); sendAs(target, replyFor(target)); }, 1600);
-      }
-    }, 1200);
-  };
-  const replyFor = (id) => ({
-    kratos: 'On it. I’ll harden and prove it before anything ships — Lew gets an approval gate first.',
-    faye: 'Picking it up now. I’ll build it, then hand to Kratos for review before staging.',
-    chloe: 'Taking it. I’ll tie every line to an outcome and push the draft for your sign-off.',
-  })[id];
-
-  const quickOrders = ['Secure the build before launch', 'Ship the galaxy to staging', 'Tighten the Q3 offer copy', 'Give me the standup digest'];
+  const quickOrders = ['Status report — what are you working on?', 'Any blockers I should clear?', 'What did the team get done today?', 'Stand by for orders'];
   const present = window.MC.agents;
+  const onlineN = window.MCLive.onlineCount();
 
   return React.createElement('div', { className: 'mc-war' },
     React.createElement('div', { className: 'mc-war__main' },
       React.createElement('div', { className: 'mc-war__head' },
         React.createElement('div', { className: 'mc-ptitle' }, React.createElement('i', null, React.createElement(Icon, { name: 'messages-square', size: 15 })), 'War Room'),
-        React.createElement('span', { className: 'mc-chip good' }, React.createElement('span', { className: 'dot' }), '5 PRESENT')),
+        React.createElement('span', { className: 'mc-chip ' + (onlineN ? 'good' : '') }, React.createElement('span', { className: 'dot' }), onlineN + ' ONLINE')),
       React.createElement('div', { className: 'mc-war__feed', ref: feedRef },
         ...msgs.map(m => {
-          const who = m.from === 'lew' ? window.MC.operator : window.MC.agents.find(x => x.id === m.from);
+          const who = m.from === 'lew' ? window.MC.operator : (window.MC.agents.find(x => x.id === m.from) || { name: m.from, role: 'Agent', accent: '#94A3B8', avatarGrad: 'linear-gradient(145deg,#475569,#94A3B8)' });
           const grad = m.from === 'lew' ? 'linear-gradient(145deg,#A87B2E,#F3D27A)' : who.avatarGrad;
           const role = m.from === 'lew' ? 'Founder' : who.role.split(' · ')[0];
           const col = m.from === 'lew' ? '#F3D27A' : who.accent;
@@ -309,7 +278,7 @@ function WarRoom() {
               React.createElement('div', { className: 'mc-war__bh' },
                 React.createElement('span', { className: 'mc-war__nm', style: { color: col } }, who.name),
                 React.createElement('span', { className: 'mc-war__rl' }, role),
-                React.createElement('span', { className: 'mc-war__tm' }, m.time)),
+                React.createElement('span', { className: 'mc-war__tm' }, window.MCLive.fmtTime(m.ts))),
               React.createElement('div', { className: 'mc-war__tx' }, renderText(m.text))));
         }),
         typing && (() => { const w = window.MC.agents.find(x => x.id === typing); return React.createElement('div', { className: 'mc-war__msg' },
@@ -329,7 +298,7 @@ function WarRoom() {
             React.createElement('div', { className: 'av', style: { background: 'linear-gradient(145deg,#A87B2E,#F3D27A)' } }, 'L'),
             React.createElement('span', { className: 'nm' }, 'Lew'), React.createElement('span', { className: 'st' }, 'you')),
           ...present.map(a => React.createElement('div', { key: a.id, className: 'mc-war__pres' },
-            React.createElement('div', { className: 'av', style: { background: a.avatarGrad } }, a.name[0], React.createElement('span', { className: 'live', style: { position: 'absolute', right: -2, bottom: -2, width: 8, height: 8, borderRadius: '50%', border: '2px solid #1a2030', background: '#2BD8A0' } })),
+            React.createElement('div', { className: 'av', style: { background: a.avatarGrad } }, a.name[0], React.createElement('span', { className: 'live', style: { position: 'absolute', right: -2, bottom: -2, width: 8, height: 8, borderRadius: '50%', border: '2px solid #1a2030', background: (a.status && a.status !== 'offline') ? '#2BD8A0' : '#64748B' } })),
             React.createElement('span', { className: 'nm' }, a.name), React.createElement('span', { className: 'st' }, a.statusLabel))))),
       React.createElement('div', { className: 'mc-war__sidepanel' },
         React.createElement('div', { className: 'mc-ptitle', style: { marginBottom: 14 } }, React.createElement('i', null, React.createElement(Icon, { name: 'zap', size: 15 })), 'Quick Orders'),
