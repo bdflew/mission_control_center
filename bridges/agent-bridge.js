@@ -75,6 +75,41 @@ const CWD = process.env.AGENT_CWD || path.join(os.homedir(), 'Desktop', 'legacy-
 const MODEL = (process.env.AGENT_MODEL || '').trim();
 const REPLY_TIMEOUT_MS = 180000;
 
+// ---------------------------------------------------------------- LOOP GUARD (bridge side)
+// Independent of the backend's hard cap — belt AND suspenders. An agent will
+// never enter an infinite exchange with another agent because EVERY one of
+// these must pass, and each alone bounds the chain:
+//   • bot-to-bot is OFF unless AGENT_ALLOW_BOT_TO_BOT=1
+//   • a bot answers another bot ONLY when @mentioned by name
+//   • hop depth: operator msg = hop 0; each auto-reply = +1; stop at MAX_HOP
+//   • pair cap: at most MAX_PAIR exchanges with the same agent per PAIR_WINDOW
+//   • rate cap: at most MAX_REPLIES_PER_MIN total auto-replies
+//   • the bridge backs off when the server returns 429 (loop guard tripped)
+const ALLOW_B2B = process.env.AGENT_ALLOW_BOT_TO_BOT === '1';
+const MAX_HOP = Number(process.env.AGENT_MAX_HOP || 2);          // bot→bot chain depth after the operator
+const MAX_REPLIES_PER_MIN = Number(process.env.AGENT_MAX_RPM || 10);
+const MAX_PAIR = Number(process.env.AGENT_MAX_PAIR || 3);         // exchanges with one peer …
+const PAIR_WINDOW_MS = Number(process.env.AGENT_PAIR_WINDOW_MS || 300000); // … per 5 min
+let _replyTimes = [];                 // timestamps of our recent auto-replies
+const _pair = {};                     // peerId -> [timestamps]
+let _backoffUntil = 0;                // set when the server 429s us
+
+function rateOk() {
+  const now = Date.now();
+  _replyTimes = _replyTimes.filter(t => now - t < 60000);
+  return now >= _backoffUntil && _replyTimes.length < MAX_REPLIES_PER_MIN;
+}
+function pairOk(peer) {
+  const now = Date.now();
+  _pair[peer] = (_pair[peer] || []).filter(t => now - t < PAIR_WINDOW_MS);
+  return _pair[peer].length < MAX_PAIR;
+}
+function recordReply(peer) {
+  const now = Date.now();
+  _replyTimes.push(now);
+  if (peer) { _pair[peer] = _pair[peer] || []; _pair[peer].push(now); }
+}
+
 function findClaude() {
   if (process.env.CLAUDE_BIN) return process.env.CLAUDE_BIN;
   try { return execSync('which claude', { encoding: 'utf8' }).trim() || null; } catch {}
@@ -133,6 +168,7 @@ function generateReply(channel, history, msg) {
       `Recent conversation:\n${ctx}`,
       `New message from ${msg.from}: ${msg.text}`,
       `Reply as ${persona.name} in plain chat text — concise (under 120 words unless asked for more), no markdown headers, no preamble, just the reply. Proof before claims: never claim work you have not verified. If asked to DO something beyond answering, acknowledge it and say it will be picked up in a full ${persona.name} session.`,
+      `Loop discipline: do NOT @mention a teammate unless you genuinely need to hand work to them. Never @mention someone just to be polite or to acknowledge — that starts unnecessary bot-to-bot chatter. End your turn cleanly; if the thread is resolved, say so and stop.`,
     ].join('\n\n');
     const args = ['-p', prompt, '--output-format', 'text', '--max-turns', '2'];
     if (MODEL) args.push('--model', MODEL);
@@ -189,11 +225,12 @@ async function pump() {
       log('skipped (engine down) on', job.channel);
     } else {
       const hist = (await get('/api/chat?channel=' + encodeURIComponent(job.channel))).messages || [];
-      log('replying on', job.channel, 'to:', job.msg.text.slice(0, 60));
+      log('replying on', job.channel, '(hop ' + (job.hop + 1) + ') to:', job.msg.text.slice(0, 50));
       const r = await generateReply(job.channel, hist, job.msg);
-      await post('/api/chat', { channel: job.channel, from: AGENT, role: 'agent', text: r.text });
-      await checkIn();
-      log(r.ok ? 'replied ok' : 'reported failure honestly');
+      // carry hop depth forward + link the reply, so downstream bots can cap the chain
+      const resp = await post('/api/chat', { channel: job.channel, from: AGENT, role: 'agent', text: r.text, hop: job.hop + 1, replyTo: job.msg.id });
+      if (resp && resp.loopGuard) { _backoffUntil = Date.now() + 60000; log('server loop guard 429 — backing off 60s'); }
+      else { recordReply(job.peer); await checkIn(); log(r.ok ? 'replied ok' : 'reported failure honestly'); }
     }
   } catch (e) { log('job failed:', e.message); }
   busy = false;
@@ -218,11 +255,21 @@ function listen() {
         if (evt.type !== 'chat' || !evt.message) continue;
         const m = evt.message;
         if (seen.has(m.id)) continue; seen.add(m.id); if (seen.size > 4000) seen.clear();
-        if (m.from === AGENT) continue;                       // never answer ourselves
-        if (m.role !== 'operator') continue;                  // only respond to Lew
-        const direct = m.channel === CHANNEL;
-        const grouped = m.channel === 'warroom' && mention.test(m.text);
-        if (direct || grouped) { queue.push({ channel: m.channel, msg: m }); pump(); }
+        if (m.from === AGENT) continue;                       // L1: never answer ourselves
+        const hop = Number(m.hop) || 0;
+        let should = false, peer = null;
+        if (m.role === 'operator') {
+          // Lew always resets the chain (hop 0). Reply on our line, or in the
+          // war room when named.
+          should = (m.channel === CHANNEL) || (m.channel === 'warroom' && mention.test(m.text));
+        } else if (m.role === 'agent' && ALLOW_B2B) {
+          // bot-to-bot: ONLY when @mentioned by name, within hop depth, and
+          // under the pair + rate caps. Any failing check ends the chain.
+          const atMention = new RegExp('@' + AGENT + '\\b', 'i').test(m.text);
+          if (atMention && hop < MAX_HOP && pairOk(m.from) && rateOk()) { should = true; peer = m.from; }
+          else if (atMention) log('bot-to-bot suppressed (hop ' + hop + '/' + MAX_HOP + ', pair/rate guard) from', m.from);
+        }
+        if (should) { queue.push({ channel: m.channel, msg: m, hop, peer }); pump(); }
       }
     });
     res.on('end', () => { log('SSE dropped — reconnecting in 3s'); setTimeout(listen, 3000); });

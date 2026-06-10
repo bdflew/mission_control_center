@@ -165,9 +165,23 @@ const api = {
   'POST /api/chat': async (req, res) => {
     try {
       const b = await readBody(req);
-      sendJSON(res, 200, store.postMessage(b.channel || 'warroom', b));
+      const channel = b.channel || 'warroom';
+      const role = b.role || (b.from === 'lew' ? 'operator' : 'agent');
+      // Loop guard: agent-role posts are rate/burst capped per channel. Operator
+      // and system messages are never blocked.
+      if (role === 'agent') {
+        const g = store.loopGuardCheck(channel, b.from);
+        if (!g.ok) {
+          store.loopGuardTrip(channel, b.from, g.reason);
+          return sendJSON(res, 429, { error: 'loop guard: ' + g.reason, loopGuard: true, retryAfterMs: store.LOOP_LIMITS.windowMs });
+        }
+      }
+      sendJSON(res, 200, store.postMessage(channel, b));
       maybeTwinReply(b); // fire-and-forget: the twin answers over SSE like any agent
-    } catch (e) { sendJSON(res, 400, { error: e.message }); }
+    } catch (e) {
+      if (e.loopGuard) return sendJSON(res, 429, { error: e.message, loopGuard: true });
+      sendJSON(res, 400, { error: e.message });
+    }
   },
 
   // ---- Digital Twin (model-backed Legacy Lew). Key stays server-side. ----

@@ -118,9 +118,54 @@ function getChannel(channel) {
   return data.channels[channel] || [];
 }
 
-function postMessage(channel, { from, role, text }) {
+// ---------------------------------------------------------------- LOOP GUARD
+// Hard backstop against bot-to-bot infinite loops, enforced at the single
+// write path so NO bridge bug can defeat it. Two independent limits:
+//   1. Per-agent rate cap   — an agent may post at most LOOP_MAX_AGENT
+//      messages to one channel per LOOP_WINDOW_MS.
+//   2. Channel agent-burst   — all agents combined may post at most
+//      LOOP_MAX_CHANNEL agent-role messages per channel per window.
+// Operator (Lew) and system messages are never rate-limited. When a cap trips
+// the post is rejected (429 at the API), a single 'loopguard' event fires, and
+// one system notice is posted so it's visible on the dashboard.
+const LOOP_WINDOW_MS = Number(process.env.MC_LOOP_WINDOW_MS || 60000);
+const LOOP_MAX_AGENT = Number(process.env.MC_LOOP_MAX_AGENT || 8);    // per agent / channel / window
+const LOOP_MAX_CHANNEL = Number(process.env.MC_LOOP_MAX_CHANNEL || 20); // all agents / channel / window
+const _postLog = [];           // {channel, from, ts} for agent-role posts
+const _tripped = {};           // channel -> last trip ts (debounce the notice)
+
+function _prune(now) { while (_postLog.length && now - _postLog[0].ts > LOOP_WINDOW_MS) _postLog.shift(); }
+
+// Returns { ok:true } or { ok:false, reason } — call BEFORE accepting an agent post.
+function loopGuardCheck(channel, from) {
+  const now = Date.now(); _prune(now);
+  const inCh = _postLog.filter(e => e.channel === channel);
+  if (inCh.length >= LOOP_MAX_CHANNEL) return { ok: false, reason: 'channel burst cap (' + LOOP_MAX_CHANNEL + '/' + (LOOP_WINDOW_MS / 1000) + 's)' };
+  if (inCh.filter(e => e.from === from).length >= LOOP_MAX_AGENT) return { ok: false, reason: 'agent rate cap (' + LOOP_MAX_AGENT + '/' + (LOOP_WINDOW_MS / 1000) + 's)' };
+  return { ok: true };
+}
+
+// Record a trip + emit one visible notice per channel per window.
+function loopGuardTrip(channel, from, reason) {
+  const now = Date.now();
+  bus.emit('event', { type: 'loopguard', channel, from, reason, ts: new Date().toISOString() });
+  if (!_tripped[channel] || now - _tripped[channel] > LOOP_WINDOW_MS) {
+    _tripped[channel] = now;
+    try { postMessage(channel, { from: 'system', role: 'system', text: `⛔ Loop guard: paused auto-replies on this channel — ${reason}. Conversation continues; auto-replies resume next window or when Lew posts.` }, true); } catch {}
+  }
+}
+
+// _internal=true skips the guard (operator/system/guard-notice posts).
+function postMessage(channel, { from, role, text, hop, replyTo }, _internal = false) {
   if (!channel || !text || !String(text).trim()) {
     throw new Error('channel and non-empty text are required');
+  }
+  const resolvedRole = role || (from === 'lew' ? 'operator' : 'agent');
+  // Loop guard applies only to agent-role posts and only via the public path.
+  if (!_internal && resolvedRole === 'agent') {
+    const g = loopGuardCheck(channel, from);
+    if (!g.ok) { const e = new Error('loop guard: ' + g.reason); e.loopGuard = true; e.channel = channel; e.from = from; e.reason = g.reason; throw e; }
+    _postLog.push({ channel, from: from || 'unknown', ts: Date.now() });
   }
   const data = readJSON('chat.json', { channels: {} });
   if (!data.channels[channel]) data.channels[channel] = [];
@@ -128,10 +173,14 @@ function postMessage(channel, { from, role, text }) {
     id: id('m'),
     channel,
     from: from || 'unknown',
-    role: role || (from === 'lew' ? 'operator' : 'agent'),
+    role: resolvedRole,
     text: String(text).slice(0, 8000),
     ts: new Date().toISOString(),
   };
+  // conversation-depth metadata (used by bridges to cap bot-to-bot chains)
+  const h = Number(hop);
+  if (Number.isFinite(h) && h > 0) msg.hop = Math.min(99, Math.floor(h));
+  if (replyTo && typeof replyTo === 'string') msg.replyTo = replyTo.slice(0, 64);
   data.channels[channel].push(msg);
   // keep channels from growing unbounded
   if (data.channels[channel].length > 2000) {
@@ -208,4 +257,6 @@ module.exports = {
   listAgents, updateAgent, touchAgent,
   listApprovals, addApproval, resolveApproval,
   getMode, setMode,
+  loopGuardCheck, loopGuardTrip,
+  LOOP_LIMITS: { windowMs: LOOP_WINDOW_MS, maxAgent: LOOP_MAX_AGENT, maxChannel: LOOP_MAX_CHANNEL },
 };
