@@ -76,7 +76,9 @@ function generateReply(channel, history, msg) {
     ].join('\n\n');
     const args = ['-p', prompt, '--output-format', 'text', '--max-turns', '2'];
     if (MODEL) args.push('--model', MODEL);
-    const child = spawn(CLAUDE, args, { cwd: CWD, env: process.env });
+    // stdin must be closed ('ignore') — the CLI waits 3s on an open stdin pipe
+    // and can fail the run; we never pipe anything in.
+    const child = spawn(CLAUDE, args, { cwd: CWD, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '', err = '';
     const killer = setTimeout(() => { try { child.kill('SIGKILL'); } catch {} }, REPLY_TIMEOUT_MS);
     child.stdout.on('data', c => out += c);
