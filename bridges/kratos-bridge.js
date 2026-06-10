@@ -36,6 +36,18 @@ function findClaude() {
 }
 const CLAUDE = findClaude();
 
+// Nested-session vars (CLAUDE_*, ANTHROPIC_*) from a parent Claude Code
+// session poison the child CLI's auth (401 against the wrong base URL).
+// Scrub them so the CLI always uses its own stored login.
+function cleanEnv() {
+  const env = {};
+  for (const [k, v] of Object.entries(process.env)) {
+    if (/^(CLAUDE|ANTHROPIC)/i.test(k)) continue;
+    env[k] = v;
+  }
+  return env;
+}
+
 function req(method, p, body) {
   return new Promise((resolve, reject) => {
     const u = new URL(API + p);
@@ -78,7 +90,7 @@ function generateReply(channel, history, msg) {
     if (MODEL) args.push('--model', MODEL);
     // stdin must be closed ('ignore') — the CLI waits 3s on an open stdin pipe
     // and can fail the run; we never pipe anything in.
-    const child = spawn(CLAUDE, args, { cwd: CWD, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(CLAUDE, args, { cwd: CWD, env: cleanEnv(), stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '', err = '';
     const killer = setTimeout(() => { try { child.kill('SIGKILL'); } catch {} }, REPLY_TIMEOUT_MS);
     child.stdout.on('data', c => out += c);
@@ -93,6 +105,41 @@ function generateReply(channel, history, msg) {
   });
 }
 
+// ---- CLI self-test: prove the reply engine works before claiming it does.
+// Re-checks every 10 min so a `claude /login` fixes us without a restart. ----
+let cliOk = false;
+let lastHintAt = 0;
+function selfTest() {
+  return new Promise((resolve) => {
+    const child = spawn(CLAUDE, ['-p', 'Reply with exactly: OK', '--output-format', 'text', '--max-turns', '1'],
+      { cwd: CWD, env: cleanEnv(), stdio: ['ignore', 'pipe', 'pipe'] });
+    let out = '';
+    const killer = setTimeout(() => { try { child.kill('SIGKILL'); } catch {} }, 90000);
+    child.stdout.on('data', c => out += c);
+    child.on('close', code => {
+      clearTimeout(killer);
+      const ok = code === 0 && /OK/i.test(out) && !/401|authenticate/i.test(out);
+      resolve(ok);
+    });
+    child.on('error', () => { clearTimeout(killer); resolve(false); });
+  });
+}
+async function runSelfTest() {
+  const was = cliOk;
+  cliOk = await selfTest();
+  if (cliOk !== was) log(cliOk ? 'reply engine VERIFIED — real replies on' : 'reply engine UNAVAILABLE');
+  try {
+    await post('/api/agents/update', {
+      id: AGENT, status: 'online',
+      statusLabel: cliOk ? 'Online' : 'Bridge degraded — CLI login needed',
+      task: cliOk ? 'Watching agent:kratos + warroom (live bridge)' : 'Reply engine offline — run `claude /login` in Terminal, then rerun the launcher',
+      model: MODEL || 'claude (session default)', connectedVia: 'api',
+    });
+  } catch {}
+  return cliOk;
+}
+const LOGIN_HINT = '(Kratos bridge is connected, but my reply engine needs a one-time login on this Mac: open Terminal, run `claude` then `/login`, finish in the browser, then re-run bridges/start-kratos-bridge.sh. I will pick your messages back up automatically.)';
+
 // ---- serialized work queue (one reply at a time, no overlaps) ----
 const queue = [];
 let busy = false;
@@ -101,12 +148,21 @@ async function pump() {
   busy = true;
   const job = queue.shift();
   try {
-    const hist = (await get('/api/chat?channel=' + encodeURIComponent(job.channel))).messages || [];
-    log('replying on', job.channel, 'to:', job.msg.text.slice(0, 60));
-    const r = await generateReply(job.channel, hist, job.msg);
-    await post('/api/chat', { channel: job.channel, from: AGENT, role: 'agent', text: r.text });
-    await checkIn();
-    log(r.ok ? 'replied ok' : 'reported failure honestly');
+    if (!cliOk) {
+      // don't burn a failed CLI call per message — hint at most once per hour
+      if (Date.now() - lastHintAt > 3600000) {
+        lastHintAt = Date.now();
+        await post('/api/chat', { channel: job.channel, from: AGENT, role: 'agent', text: LOGIN_HINT });
+      }
+      log('skipped reply (engine down) on', job.channel);
+    } else {
+      const hist = (await get('/api/chat?channel=' + encodeURIComponent(job.channel))).messages || [];
+      log('replying on', job.channel, 'to:', job.msg.text.slice(0, 60));
+      const r = await generateReply(job.channel, hist, job.msg);
+      await post('/api/chat', { channel: job.channel, from: AGENT, role: 'agent', text: r.text });
+      await checkIn();
+      log(r.ok ? 'replied ok' : 'reported failure honestly');
+    }
   } catch (e) { log('job failed:', e.message); }
   busy = false;
   setImmediate(pump);
@@ -153,6 +209,8 @@ function listen() {
   log('Kratos bridge starting · API', API, '· CLI', CLAUDE, '· cwd', CWD);
   await checkIn();
   setInterval(checkIn, 5 * 60 * 1000);            // heartbeat
+  runSelfTest().then(ok => log('self-test:', ok ? 'PASS — replies are live' : 'FAIL — posting login hint on demand'));
+  setInterval(runSelfTest, 10 * 60 * 1000);       // self-heal after /login
   listen();
   const bye = async () => {
     try { await post('/api/agents/update', { id: AGENT, status: 'offline', statusLabel: 'Not connected', task: null }); } catch {}
