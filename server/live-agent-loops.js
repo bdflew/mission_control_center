@@ -17,6 +17,22 @@ const STATE_PATH = process.env.MC_LIVE_LOOP_STATE || path.join(__dirname, 'state
 const POLL_MS = Number(process.env.MC_LIVE_LOOP_POLL_MS || 1200);
 const HEARTBEAT_MS = Number(process.env.MC_LIVE_LOOP_HEARTBEAT_MS || 30000);
 
+// Load .env manually if it exists to be zero-dependency
+const envPath = path.join(__dirname, '..', '.env');
+if (fs.existsSync(envPath)) {
+  const lines = fs.readFileSync(envPath, 'utf8').split('\n');
+  for (const line of lines) {
+    const match = line.match(/^\s*([^#=\s]+)\s*=\s*(.*)$/);
+    if (match) {
+      const key = match[1];
+      let val = match[2].trim();
+      if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1);
+      if (val.startsWith("'") && val.endsWith("'")) val = val.slice(1, -1);
+      if (!process.env[key]) process.env[key] = val;
+    }
+  }
+}
+
 const AGENTS = [
   {
     id: 'sage',
@@ -26,9 +42,14 @@ const AGENTS = [
     lane: 'operations, routing, approvals, coordination, briefs, and protecting Lew’s time',
     tone: 'direct, strategic, proof-before-claims, approval-aware',
   },
-  // kratos intentionally NOT here — the REAL Kratos answers on agent:kratos
-  // + warroom via bridges/kratos-bridge.js (Claude Code CLI). Keeping him in
-  // this templated loop would double-reply on his channel.
+  {
+    id: 'kratos',
+    name: 'Kratos',
+    role: 'CTO · Security / QA',
+    model: 'kratos-live-qa-bridge',
+    lane: 'technical QA, security, repo/build verification, architecture risk, and repair packets',
+    tone: 'precise, skeptical, technical, evidence-first',
+  },
   {
     id: 'faye',
     name: 'Faye',
@@ -54,6 +75,13 @@ const AGENTS = [
     tone: 'founder-minded, decisive, strategic, direct',
   },
 ];
+
+// MC_LIVE_LOOP_EXCLUDE=kratos[,id…] removes agents from this templated loop
+// without editing the roster above — used when a REAL agent bridge owns a
+// channel (e.g. bridges/kratos-bridge.js answers agent:kratos with the
+// actual Claude Code Kratos; running both would double-reply).
+const EXCLUDE = String(process.env.MC_LIVE_LOOP_EXCLUDE || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+const ROSTER = AGENTS.filter(a => !EXCLUDE.includes(a.id));
 
 function loadState() {
   try { return JSON.parse(fs.readFileSync(STATE_PATH, 'utf8')); }
@@ -111,6 +139,83 @@ function agentReply(agent, msg, recent) {
   return `${opener}\n\nI received: “${text || '(blank)'}”\n\nMy lane read: ${agent.lane}. Give me the specific decision, file, offer, bug, or handoff you want me to work through and I’ll respond from that role.${contextLine}`;
 }
 
+async function getModelReply(agent, msg, recent) {
+  const anthropicKey = (process.env.ANTHROPIC_API_KEY || '').trim();
+  const geminiKey = (process.env.GEMINI_API_KEY || '').trim();
+
+  if (!anthropicKey && !geminiKey) {
+    return agentReply(agent, msg, recent);
+  }
+
+  const system = `You are ${agent.name}, the ${agent.role} for Legacy Automations.
+Your platform alias is Antigravity (Faye) / Codex (Chloe) / Claude (Kratos) / Sage (Sage).
+Tone: ${agent.tone}
+Lane: ${agent.lane}
+Answer the operator's questions regarding files, system architecture, task logs, and build status in character.
+Keep responses concise and formatted in markdown.
+Do not perform external sends/deploys/permission changes without approval.`;
+
+  const messages = recent.slice(-10).map(m => ({
+    role: m.role === 'operator' ? 'user' : 'assistant',
+    content: m.text || ''
+  })).filter(m => m.content);
+
+  while (messages.length && messages[0].role !== 'user') messages.shift();
+  if (!messages.length) return agentReply(agent, msg, recent);
+
+  try {
+    if (geminiKey) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`;
+      const contents = messages.map(m => ({
+        role: m.role === 'user' ? 'user' : 'model',
+        parts: [{ text: m.content }]
+      }));
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents,
+          systemInstruction: { parts: [{ text: system }] },
+          generationConfig: { temperature: 0.7, maxOutputTokens: 1000 }
+        })
+      });
+      if (r.ok) {
+        const j = await r.json();
+        if (j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts[0]) {
+          return j.candidates[0].content.parts[0].text;
+        }
+      }
+    }
+
+    if (anthropicKey) {
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': anthropicKey,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'claude-3-5-sonnet-20241022',
+          max_tokens: 1024,
+          system,
+          messages
+        })
+      });
+      if (r.ok) {
+        const j = await r.json();
+        if (j.content && j.content[0] && j.content[0].text) {
+          return j.content[0].text.trim();
+        }
+      }
+    }
+  } catch (err) {
+    console.error(`[LLM_API_ERROR:${agent.id}]`, err.message);
+  }
+
+  return agentReply(agent, msg, recent);
+}
+
 async function heartbeat(agent) {
   await post('/api/agents/update', {
     id: agent.id,
@@ -125,8 +230,8 @@ async function heartbeat(agent) {
 async function bootstrap() {
   const health = await get('/api/health');
   if (!health.ok) throw new Error('Mission Control health check failed');
-  for (const agent of AGENTS) await heartbeat(agent);
-  for (const agent of AGENTS) {
+  for (const agent of ROSTER) await heartbeat(agent);
+  for (const agent of ROSTER) {
     const channel = `agent:${agent.id}`;
     const data = await get('/api/chat?channel=' + encodeURIComponent(channel));
     const last = (data.messages || []).slice(-1)[0];
@@ -134,7 +239,7 @@ async function bootstrap() {
     if (!state.lastSeen[channel] && last) state.lastSeen[channel] = last.id;
   }
   saveState(state);
-  console.log(`LIVE_AGENT_LOOPS_READY ${new Date().toISOString()} api=${API} agents=${AGENTS.map(a => a.id).join(',')}`);
+  console.log(`LIVE_AGENT_LOOPS_READY ${new Date().toISOString()} api=${API} agents=${ROSTER.map(a => a.id).join(',')}${EXCLUDE.length ? ' excluded=' + EXCLUDE.join(',') : ''}`);
 }
 
 async function tickAgent(agent) {
@@ -152,7 +257,7 @@ async function tickAgent(agent) {
     state.lastSeen[channel] = msg.id;
     if (msg.role === 'operator' && !state.repliedTo[msg.id]) {
       const recent = messages.slice(Math.max(0, messages.indexOf(msg) - 5), messages.indexOf(msg) + 1);
-      const reply = agentReply(agent, msg, recent);
+      const reply = await getModelReply(agent, msg, recent);
       await post('/api/chat', { channel, from: agent.id, role: 'agent', text: reply });
       state.repliedTo[msg.id] = true;
       console.log(`[${new Date().toISOString()}] replied ${agent.id} -> ${channel} for ${msg.id}`);
@@ -165,12 +270,12 @@ let lastHeartbeat = 0;
 async function mainLoop() {
   const now = Date.now();
   if (now - lastHeartbeat > HEARTBEAT_MS) {
-    for (const agent of AGENTS) {
+    for (const agent of ROSTER) {
       try { await heartbeat(agent); } catch (e) { console.error(`[heartbeat:${agent.id}] ${e.message}`); }
     }
     lastHeartbeat = now;
   }
-  for (const agent of AGENTS) {
+  for (const agent of ROSTER) {
     try { await tickAgent(agent); } catch (e) { console.error(`[tick:${agent.id}] ${e.message}`); }
   }
 }
