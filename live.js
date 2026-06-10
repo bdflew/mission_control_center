@@ -229,7 +229,7 @@
     if (!el) {
       el = document.createElement('div');
       el.id = 'mc-live-badge';
-      el.style.cssText = 'position:fixed;right:14px;bottom:12px;z-index:120;font-family:var(--font-mono,monospace);font-size:10.5px;letter-spacing:.04em;padding:6px 11px;border-radius:999px;display:flex;align-items:center;gap:7px;cursor:default;backdrop-filter:blur(8px);user-select:none;transition:opacity .3s;';
+      el.style.cssText = 'position:fixed;right:96px;bottom:12px;z-index:120;font-family:var(--font-mono,monospace);font-size:10.5px;letter-spacing:.04em;padding:6px 11px;border-radius:999px;display:flex;align-items:center;gap:7px;cursor:default;backdrop-filter:blur(8px);user-select:none;transition:opacity .3s;';
       document.body.appendChild(el);
     }
     const c = live ? '#34D399' : '#64748B';

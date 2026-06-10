@@ -95,7 +95,7 @@
     </div>
     <div class="tabs">
       <button class="tab on" data-agent="twin" id="tabTwin">LEW</button>
-      <button class="tab" data-agent="hermes" id="tabHermes">HERMES</button>
+      <button class="tab" data-agent="sage" id="tabSage">SAGE</button>
     </div>
   </div>
 
@@ -157,9 +157,32 @@ const rig = new THREE.Group(); scene.add(rig);
 let mode3d = 'card'; // 'card' | 'glb'
 let cardMesh = null, glowSprite = null, shadowMesh = null, mixer = null, particles = null;
 const TEX = {};
-const texLoader = new THREE.TextureLoader();
+/* Load the avatar art and key out its white studio background so the
+   character floats with NO background (the art isn't shipped transparent). */
 function loadTex(name, path) {
-  return new Promise(res => texLoader.load(path, t => { t.colorSpace = THREE.SRGBColorSpace; TEX[name] = t; res(t); }, undefined, () => res(null)));
+  return new Promise(res => {
+    const img = new Image();
+    img.onload = () => {
+      const cv = document.createElement('canvas');
+      cv.width = img.width; cv.height = img.height;
+      const x = cv.getContext('2d');
+      x.drawImage(img, 0, 0);
+      const d = x.getImageData(0, 0, cv.width, cv.height);
+      const p = d.data;
+      for (let i = 0; i < p.length; i += 4) {
+        const r = p[i], g = p[i + 1], b = p[i + 2];
+        const min = Math.min(r, g, b);
+        if (min > 248) p[i + 3] = 0;                       // pure white → gone
+        else if (min > 232) p[i + 3] = Math.round(255 * (248 - min) / 16); // feathered edge
+      }
+      x.putImageData(d, 0, 0);
+      const t = new THREE.CanvasTexture(cv);
+      t.colorSpace = THREE.SRGBColorSpace;
+      TEX[name] = t; res(t);
+    };
+    img.onerror = () => res(null);
+    img.src = path;
+  });
 }
 
 function radialSprite(rgb, size = 256) {
@@ -314,7 +337,10 @@ let analyser = null;
   requestAnimationFrame(meterLoop);
 })();
 
-async function speakProvider(text) {
+/* per-agent browser-voice character (matches client.config voices) */
+const VOICE_PARAMS = { twin: { pitch: 0.95, rate: 1.0 }, sage: { pitch: 1.08, rate: 1.02 } };
+async function speakProvider(text, who) {
+  const vp = VOICE_PARAMS[who || agent] || VOICE_PARAMS.twin;
   // Tier 2: premium voice through the backend proxy
   try {
     const r = await post('/api/tts', { text });
@@ -335,7 +361,7 @@ async function speakProvider(text) {
   return new Promise(resolve => {
     if (!('speechSynthesis' in window)) return resolve();
     const u = new SpeechSynthesisUtterance(text.replace(/[*_`#>]/g, '').slice(0, 600));
-    u.pitch = 0.95; u.rate = 1.0;
+    u.pitch = vp.pitch; u.rate = vp.rate;
     let alive = true; // no analyser on synth — drive energy with a speech-paced envelope
     (function fake() { if (!alive) return; audioEnergy = 0.25 + Math.abs(Math.sin(performance.now() / 95)) * 0.5; requestAnimationFrame(fake); })();
     const fin = () => { alive = false; audioEnergy = 0; resolve(); };
@@ -362,13 +388,23 @@ function listenOnce() {
 }
 
 /* ============================================================
-   CHAT — Lew (the Claude-backed twin) or Hermes (plug-and-play:
-   any real Hermes agent that connects via MCP/CLI/REST and
-   watches channel "hermes" answers here, voice included).
+   CHAT — Lew (the Claude-backed twin) or Sage (COO, runs on the
+   Hermes harness: her agent watches her direct line `agent:sage`
+   via MCP/CLI/REST and answers here — text AND voice).
    ============================================================ */
 let agent = 'twin';
 let twinMeta = { displayName: 'Legacy Lew', agentId: 'legacylew', online: false, model: '' };
+const SAGE_CHANNEL = 'agent:sage';
+let sageStatus = { status: 'offline', statusLabel: 'Not connected', connectedVia: null };
 const feed = $('feed');
+/* one-shot waiter the ∞ loop uses: resolves on Sage's next reply */
+let replyWaiter = null;
+function waitForReply(timeoutMs) {
+  return new Promise(resolve => {
+    const to = setTimeout(() => { replyWaiter = null; resolve(null); }, timeoutMs);
+    replyWaiter = (text) => { clearTimeout(to); replyWaiter = null; resolve(text); };
+  });
+}
 
 function addMsg(kind, text, who) {
   const el = document.createElement('div');
@@ -392,9 +428,11 @@ async function sendText(raw) {
       addMsg('them', d.reply, twinMeta.displayName);
       return d.reply;
     } else {
-      await post('/api/chat', { channel: 'hermes', from: 'lew', role: 'operator', text });
-      setState('idle');
-      return null; // a real Hermes agent answers over SSE if connected
+      await post('/api/chat', { channel: SAGE_CHANNEL, from: 'lew', role: 'operator', text });
+      // Sage answers over SSE when her Hermes harness is connected.
+      if (sageStatus.status === 'offline') { setState('idle'); addMsg('sys', 'sent — Sage hasn’t connected her harness yet, she’ll see it when she checks in'); }
+      else setState('thinking'); // she's online: hold the thinking pose until her reply lands
+      return null;
     }
   } catch (e) { setState('idle'); addMsg('sys', 'backend unreachable'); return null; }
 }
@@ -420,7 +458,8 @@ $('micBtn').onclick = async () => {
   if (heard) { $('input').value = ''; sendAndSpeak(heard); }
 };
 
-/* ∞ speech-to-speech conversation loop */
+/* ∞ speech-to-speech conversation loop — works with the twin (sync reply)
+   AND with Sage (async reply over SSE: we wait for her, speak it, listen again) */
 let loopOn = false;
 $('voiceLoop').onclick = async () => {
   if (!SR) return addMsg('sys', 'voice conversation needs Chrome (Web Speech API)');
@@ -433,35 +472,55 @@ $('voiceLoop').onclick = async () => {
       const heard = await listenOnce();
       if (!loopOn) break;
       if (heard == null || !heard.trim()) continue;   // silence → listen again
-      const reply = await sendText(heard);
+      let reply = await sendText(heard);
+      if (!reply && agent === 'sage') {
+        if (sageStatus.status === 'offline') break;    // honest: nobody to answer
+        setState('thinking');
+        reply = await waitForReply(120000);            // wait for Sage over SSE
+        if (!reply) { addMsg('sys', 'Sage hasn’t answered yet — leaving voice mode on her line'); break; }
+        // her reply already rendered + spoken by the SSE handler; skip double-speak
+        reply = null;
+      }
       if (reply) { setState('speaking'); await speakProvider(reply); setState('idle'); }
-      if (agent !== 'twin') break; // hermes replies async — don't hot-loop
     }
     setState('idle');
   } else if (stopListen) stopListen();
 };
 
 /* agent tabs */
+async function refreshSageStatus() {
+  try {
+    const d = await get('/api/agents');
+    const s = (d.agents || []).find(x => x.id === 'sage');
+    if (s) sageStatus = s;
+  } catch {}
+}
 function setAgent(a) {
   agent = a;
   $('tabTwin').classList.toggle('on', a === 'twin');
-  $('tabHermes').classList.toggle('on', a === 'hermes');
-  $('name').textContent = a === 'twin' ? twinMeta.displayName.toUpperCase() : 'HERMES';
-  $('input').placeholder = a === 'twin' ? 'Talk to your twin…' : 'Message Hermes (channel: hermes)…';
+  $('tabSage').classList.toggle('on', a === 'sage');
+  $('name').textContent = a === 'twin' ? twinMeta.displayName.toUpperCase() : 'SAGE';
+  $('input').placeholder = a === 'twin' ? 'Talk to your twin…' : 'Talk to Sage — text or voice…';
   feed.innerHTML = '';
-  if (a === 'hermes') {
-    get('/api/chat?channel=hermes').then(d => {
-      (d.messages || []).slice(-12).forEach(m => addMsg(m.role === 'operator' ? 'me' : 'them', m.text, m.role === 'operator' ? 'You' : m.from));
-      addMsg('sys', 'plug-and-play: any agent that connects via MCP / CLI / REST and watches channel “hermes” answers here');
-    }).catch(() => {});
+  if (a === 'sage') {
+    refreshSageStatus().then(() => {
+      $('sub').textContent = sageStatus.status !== 'offline'
+        ? 'Sage online · ' + (sageStatus.connectedVia || 'connected') + (sageStatus.model ? ' · ' + sageStatus.model : '')
+        : 'Sage offline — her Hermes harness connects via MCP/CLI and watches agent:sage';
+      get('/api/chat?channel=' + encodeURIComponent(SAGE_CHANNEL)).then(d => {
+        (d.messages || []).slice(-12).forEach(m => addMsg(m.role === 'operator' ? 'me' : 'them', m.text, m.role === 'operator' ? 'You' : 'Sage'));
+        if (sageStatus.status === 'offline') addMsg('sys', 'Sage is COO on the Hermes harness — once she connects (watching agent:sage), she answers here in text and voice');
+      }).catch(() => {});
+    });
   } else {
+    $('sub').textContent = twinMeta.online ? 'twin online · ' + twinMeta.model : 'twin offline — set ANTHROPIC_API_KEY';
     get('/api/chat?channel=agent:' + twinMeta.agentId).then(d => {
       (d.messages || []).slice(-10).forEach(m => addMsg(m.role === 'operator' ? 'me' : 'them', m.text, m.role === 'operator' ? 'You' : twinMeta.displayName));
     }).catch(() => {});
   }
 }
 $('tabTwin').onclick = () => setAgent('twin');
-$('tabHermes').onclick = () => setAgent('hermes');
+$('tabSage').onclick = () => setAgent('sage');
 
 /* ============================================================
    UPDATES — real events only: approvals / agent status / mode
@@ -502,11 +561,18 @@ async function boot() {
         else pushUpdate('<b>' + d.approval.subject + '</b> → ' + d.approval.state + (String(d.approval.decidedBy || '').startsWith('autonomy') ? ' · AUTO' : ''));
         if ('Notification' in window && Notification.permission === 'granted' && d.approval.state === 'pending') new Notification('Approval needs you', { body: d.approval.subject });
       }
-      if (d.type === 'agent' && d.agent) pushUpdate('<b>' + d.agent.name + '</b> → ' + (d.agent.statusLabel || d.agent.status));
+      if (d.type === 'agent' && d.agent) {
+        if (d.agent.id === 'sage') sageStatus = d.agent; // live status for the Sage tab
+        pushUpdate('<b>' + d.agent.name + '</b> → ' + (d.agent.statusLabel || d.agent.status));
+      }
       if (d.type === 'mode') pushUpdate('<b>Autonomy</b> → ' + d.mode);
-      if (d.type === 'chat' && d.message && d.message.channel === 'hermes' && d.message.role !== 'operator' && agent === 'hermes') {
-        addMsg('them', d.message.text, d.message.from);
-        if (speakOn()) { setState('speaking'); speakProvider(d.message.text).then(() => setState('idle')); }
+      if (d.type === 'chat' && d.message && d.message.channel === SAGE_CHANNEL && d.message.role !== 'operator') {
+        if (agent === 'sage') {
+          addMsg('them', d.message.text, 'Sage');
+          if (speakOn()) { setState('speaking'); speakProvider(d.message.text, 'sage').then(() => setState('idle')); }
+          else setState('idle');
+        } else pushUpdate('<b>Sage replied</b> on her line — open the SAGE tab');
+        if (replyWaiter) replyWaiter(d.message.text); // unblocks the ∞ loop
       }
     };
   } catch {}

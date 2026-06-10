@@ -309,13 +309,15 @@
 /* ---------- companion dock (in-dashboard) ---------- */
 #mc-companion-btn { display: none !important; } /* replaced by the dock */
 .companion-dock {
-  position: fixed; right: 18px; bottom: 18px; z-index: 70;
+  position: fixed; right: 18px; bottom: 18px; z-index: 130; /* above the LIVE badge */
   display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
   pointer-events: none;
 }
 .companion-dock > * { pointer-events: auto; }
 .companion-fab {
-  all: unset; cursor: pointer; position: relative; width: 64px; height: 64px;
+  /* pointer-events must come AFTER all:unset — unset makes it inherit the
+     dock's `none` and the button becomes unclickable (P1 bug, fixed) */
+  all: unset; pointer-events: auto; cursor: pointer; position: relative; width: 64px; height: 64px;
   border-radius: 50%; display: grid; place-items: center;
   background: radial-gradient(circle at 35% 30%, rgba(35,214,245,0.25), rgba(8,13,24,0.95) 70%);
   border: 1px solid rgba(35, 214, 245, 0.45);
