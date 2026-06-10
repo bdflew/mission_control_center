@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<style>
+  @page { size: letter; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --acc:#23D6F5; --acc2:#6FE8FB; --gold:#E8C766; --good:#34D399; --crit:#F4516B;
+          --ink:#0B1220; --ink2:#1c2740; --fg:#1a2233; --mut:#5a6b85; --line:#dde5f0; }
+  body { font-family:-apple-system,'Segoe UI',Helvetica,Arial,sans-serif; color:var(--fg); font-size:11px; line-height:1.5; }
+  .page { width:8.5in; height:11in; overflow:hidden; padding:0.5in 0.7in 0.55in; page-break-after:always; position:relative; }
+  .page:last-child { page-break-after:auto; }
+  .cover.page { height:11in; }
+
+  /* cover */
+  .cover { background:radial-gradient(120% 80% at 70% 0%, #12203a 0%, #0a1322 55%, #070c16 100%); color:#eaf2fb; min-height:11in; display:flex; flex-direction:column; }
+  .cover .eyebrow { font-family:'Courier New',monospace; font-size:11px; letter-spacing:.34em; color:var(--acc2); text-transform:uppercase; }
+  .cover h1 { font-size:42px; font-weight:800; letter-spacing:-.5px; margin:14px 0 6px; line-height:1.05; }
+  .cover h1 .g { color:var(--gold); }
+  .cover .sub { font-size:14px; color:#9fb4cd; max-width:5in; line-height:1.6; }
+  .cover .rule { height:2px; width:120px; background:linear-gradient(90deg,var(--acc),transparent); margin:22px 0; }
+  .cover .meta { margin-top:auto; font-family:'Courier New',monospace; font-size:10px; color:#7f93ad; letter-spacing:.04em; }
+  .cover .chips { display:flex; gap:8px; flex-wrap:wrap; margin-top:18px; }
+  .cover .chip { font-family:'Courier New',monospace; font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--acc2); border:1px solid rgba(35,214,245,.4); border-radius:6px; padding:5px 10px; background:rgba(35,214,245,.07); }
+  .cover .badge { display:inline-flex; align-items:center; gap:8px; font-family:'Courier New',monospace; font-size:10px; letter-spacing:.1em; color:var(--good); border:1px solid rgba(52,211,153,.45); background:rgba(52,211,153,.08); border-radius:99px; padding:5px 12px; }
+  .cover .badge::before { content:''; width:7px; height:7px; border-radius:50%; background:var(--good); box-shadow:0 0 8px var(--good); }
+
+  h2 { font-size:18px; color:var(--ink); margin:2px 0 3px; letter-spacing:-.2px; }
+  .h2row { display:flex; align-items:center; gap:10px; border-bottom:2px solid var(--ink); padding-bottom:7px; margin-bottom:13px; }
+  .num { font-family:'Courier New',monospace; font-size:13px; font-weight:700; color:#fff; background:var(--ink); width:26px; height:26px; border-radius:7px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .lead { color:var(--mut); font-size:11px; margin:-8px 0 14px; }
+  h3 { font-size:12.5px; color:var(--ink2); margin:15px 0 6px; }
+  p { margin:0 0 8px; }
+  ul,ol { margin:0 0 10px; padding-left:18px; } li { margin:3px 0; }
+  b,strong { color:var(--ink); }
+  code { font-family:'SF Mono','Courier New',monospace; font-size:10px; background:#eef3f9; color:#0a4d63; padding:1px 5px; border-radius:4px; }
+  .mono { font-family:'SF Mono','Courier New',monospace; }
+
+  .cmd { background:var(--ink); color:#d7f0f7; font-family:'SF Mono','Courier New',monospace; font-size:10px; line-height:1.7; border-radius:9px; padding:12px 15px; margin:9px 0; white-space:pre-wrap; word-break:break-word; }
+  .cmd .c { color:#5fd0e8; } .cmd .k { color:var(--gold); } .cmd .dim { color:#6f88a6; }
+
+  .card { border:1px solid var(--line); border-radius:10px; padding:11px 14px; margin:9px 0; background:#fbfcfe; }
+  .card.acc { border-left:3px solid var(--acc); }
+  .card.gold { border-left:3px solid var(--gold); background:#fffdf6; }
+  .card.warn { border-left:3px solid var(--crit); background:#fff6f7; }
+  .card.good { border-left:3px solid var(--good); background:#f4fcf8; }
+  .card h4 { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--mut); margin:0 0 7px; }
+
+  table { width:100%; border-collapse:collapse; margin:8px 0 12px; font-size:10px; }
+  th { text-align:left; background:var(--ink); color:#cfe0f0; font-weight:600; padding:7px 9px; font-size:9px; letter-spacing:.08em; text-transform:uppercase; }
+  td { padding:7px 9px; border-bottom:1px solid var(--line); vertical-align:top; }
+  tr:nth-child(even) td { background:#f7f9fc; }
+  td code { font-size:9.5px; }
+
+  .step { display:flex; gap:11px; margin:9px 0; }
+  .step .sn { flex-shrink:0; width:24px; height:24px; border-radius:50%; background:var(--acc); color:#06121a; font-weight:800; font-size:11px; display:flex; align-items:center; justify-content:center; font-family:'Courier New',monospace; }
+  .step .sb { flex:1; }
+  .step .st { font-weight:700; color:var(--ink); font-size:11.5px; margin-bottom:2px; }
+
+  .flow { display:flex; align-items:center; gap:7px; flex-wrap:wrap; font-family:'Courier New',monospace; font-size:9.5px; margin:10px 0; }
+  .flow .n { border:1px solid var(--line); border-radius:6px; padding:5px 9px; background:#fff; color:var(--ink2); }
+  .flow .ar { color:var(--acc); font-weight:700; }
+
+  .foot { position:absolute; bottom:0.4in; left:0.7in; right:0.7in; display:flex; justify-content:space-between; font-family:'Courier New',monospace; font-size:8px; color:#9aa9bf; letter-spacing:.1em; border-top:1px solid var(--line); padding-top:6px; }
+  .tag { display:inline-block; font-family:'Courier New',monospace; font-size:8.5px; letter-spacing:.1em; text-transform:uppercase; padding:2px 7px; border-radius:5px; }
+  .tag.best { background:rgba(52,211,153,.14); color:#1a7a55; }
+  .tag.ok { background:rgba(35,214,245,.14); color:#0a6b85; }
+  .callout-mut { color:var(--mut); font-size:10px; font-style:italic; }
+</style>
+</head>
+<body>
+
+<!-- ============ COVER ============ -->
+<div class="page cover">
+  <div class="eyebrow">Legacy Automations · Mission Control Center</div>
+  <h1>Bringing an AI Employee <span class="g">Live</span><br/>in Mission Control</h1>
+  <div class="rule"></div>
+  <div class="sub">The exact method Kratos used to connect himself to the dashboard — generalized so every employee (Sage, Faye, Chloe, Legacy&nbsp;Lew) comes online the same way, answering Lew in real time by text and inside the War Room.</div>
+  <div class="chips">
+    <span class="chip">MCP</span><span class="chip">Live Bridge</span><span class="chip">REST / CLI</span>
+    <span class="chip">SSE Stream</span><span class="chip">Self-Healing</span>
+  </div>
+  <div style="margin-top:22px"><span class="badge">VERIFIED LIVE — KRATOS ANSWERING ON HIS CHANNEL</span></div>
+  <div class="meta">
+    PREPARED BY KRATOS · CTO / QA<br/>
+    FOR LEW · FOUNDER &amp; CEO &nbsp;|&nbsp; ROUTE VIA SAGE<br/>
+    REPO github.com/bdflew/mission_control_center &nbsp;·&nbsp; 2026-06-10
+  </div>
+</div>
+
+<!-- ============ PAGE 1 — concept ============ -->
+<div class="page">
+  <div class="h2row"><span class="num">1</span><h2>What "being live" actually means</h2></div>
+  <p class="lead">An employee is LIVE when a small always-on program (a "bridge") connects to the Mission Control backend on their behalf and does three things continuously.</p>
+
+  <div class="step"><span class="sn">1</span><div class="sb"><div class="st">Check in</div>Tell the backend "I'm online" — this turns the agent's status dot green on the dashboard and starts a heartbeat so it stays green.</div></div>
+  <div class="step"><span class="sn">2</span><div class="sb"><div class="st">Watch</div>Subscribe to the live event stream and listen for messages Lew sends — on the agent's private line (<code>agent:&lt;id&gt;</code>) and in the <code>warroom</code> when the agent is named.</div></div>
+  <div class="step"><span class="sn">3</span><div class="sb"><div class="st">Reply</div>Generate an answer <b>as that employee</b> (we run the Claude Code CLI with their identity) and post it back to the same channel. It appears instantly in Lew's chat.</div></div>
+
+  <h3>The round trip, end to end</h3>
+  <div class="flow">
+    <span class="n">Lew types</span><span class="ar">→</span>
+    <span class="n">backend /api/chat</span><span class="ar">→</span>
+    <span class="n">SSE event</span><span class="ar">→</span>
+    <span class="n">bridge hears it</span><span class="ar">→</span>
+    <span class="n">Claude CLI (agent identity)</span><span class="ar">→</span>
+    <span class="n">reply posted</span><span class="ar">→</span>
+    <span class="n">appears in dashboard</span>
+  </div>
+
+  <div class="card good"><h4>The honesty rule (non-negotiable)</h4>If the reply engine can't run, the bridge does <b>not</b> invent an answer. It stays connected, flips the dashboard status to "degraded," and posts the exact fix needed. Silence and fakery are both failures; the truth is the feature.</div>
+
+  <div class="card acc"><h4>The five employees &amp; their channels</h4>
+    <table style="margin:0">
+      <tr><th>Employee</th><th>Agent ID</th><th>Direct line (Lew ↔ agent)</th></tr>
+      <tr><td>Sage — COO</td><td><code>sage</code></td><td><code>agent:sage</code></td></tr>
+      <tr><td>Kratos — CTO/QA</td><td><code>kratos</code></td><td><code>agent:kratos</code></td></tr>
+      <tr><td>Faye — Lead Builder</td><td><code>faye</code></td><td><code>agent:faye</code></td></tr>
+      <tr><td>Chloe — Brand</td><td><code>chloe</code></td><td><code>agent:chloe</code></td></tr>
+      <tr><td>Legacy Lew — Twin</td><td><code>legacylew</code></td><td><code>agent:legacylew</code></td></tr>
+    </table>
+  </div>
+  <div class="foot"><span>LEGACY AUTOMATIONS · CONFIDENTIAL</span><span>BRINGING AN AI EMPLOYEE LIVE</span><span>01</span></div>
+</div>
+
+<!-- ============ PAGE 2 — the fast path ============ -->
+<div class="page">
+  <div class="h2row"><span class="num">2</span><h2>The fast path — one command per employee</h2></div>
+  <p class="lead">Kratos built a generalized launcher so nobody rewrites code. Same machinery that put the real Kratos online, parameterized by agent id.</p>
+
+  <h3>Prerequisites (once per machine)</h3>
+  <ol>
+    <li>The Mission Control repo is present at <code>~/Desktop/legacy-mission-control</code>.</li>
+    <li>The <b>Claude Code CLI</b> is installed and <b>logged in</b> — this is what generates the replies. In Terminal:
+      <div class="cmd"><span class="c">claude</span>          <span class="dim"># then type</span> <span class="k">/login</span> <span class="dim">and finish in the browser</span></div>
+      <span class="callout-mut">The terminal CLI keeps its own login, separate from the Claude desktop app. This one-time step is what tripped up Kratos's first launch.</span>
+    </li>
+  </ol>
+
+  <h3>Launch an employee (example: Sage)</h3>
+  <div class="cmd"><span class="dim"># from anywhere — the launcher handles the rest</span>
+<span class="c">bash</span> ~/Desktop/legacy-mission-control/bridges/start-agent-bridge.sh <span class="k">sage</span></div>
+
+  <p>Swap <code>sage</code> for <code>faye</code>, <code>chloe</code>, or <code>legacylew</code> to bring each one online. Run them in any order; each is independent.</p>
+
+  <div class="card gold"><h4>What that one command does</h4>
+    <ol style="margin:0">
+      <li>Starts the backend if it isn't already running.</li>
+      <li>Restarts the canned "template" responders <b>excluding</b> any agent that now has a real bridge — so you never get double replies.</li>
+      <li>Launches that employee's real bridge, detached (it survives closing the Terminal window).</li>
+      <li>Runs a self-test and prints <code>self-test: PASS — replies are live</code> when ready.</li>
+    </ol>
+  </div>
+
+  <h3>Confirm it worked</h3>
+  <ul>
+    <li>Watch the launcher output for <code>self-test: PASS</code> (about 30 seconds).</li>
+    <li>On the dashboard, the employee's card reads <b>Online · Watching agent:&lt;id&gt; + warroom</b>.</li>
+    <li>Open that employee in the dashboard, send a message — the real reply lands in a few seconds.</li>
+    <li>Or in the War Room, mention them by name (e.g. <span class="mono">"@sage status?"</span>).</li>
+  </ul>
+
+  <div class="card warn"><h4>If the card says "Bridge degraded — CLI login needed"</h4>The bridge is connected but the Claude CLI isn't logged in. Run <code>claude</code> then <code>/login</code> in Terminal, finish in the browser. The bridge re-checks every 10 minutes and heals itself — no relaunch needed (or rerun the launcher to heal instantly).</div>
+
+  <div class="foot"><span>LEGACY AUTOMATIONS · CONFIDENTIAL</span><span>THE FAST PATH</span><span>02</span></div>
+</div>
+
+<!-- ============ PAGE 3 — three connection methods ============ -->
+<div class="page">
+  <div class="h2row"><span class="num">3</span><h2>The three ways an employee can connect</h2></div>
+  <p class="lead">The bridge (Method&nbsp;B) is what Kratos used and what the launcher runs. The other two exist for agents that live in their own tool/environment.</p>
+
+  <table>
+    <tr><th style="width:18%">Method</th><th style="width:12%">Best for</th><th>How</th></tr>
+    <tr>
+      <td><b>A · MCP</b><br/><span class="tag best">Richest</span></td>
+      <td>Claude Code / Desktop agents</td>
+      <td>Register Mission Control as an MCP server; the agent gets tools: <code>mc_status</code>, <code>chat_read</code>, <code>chat_post</code>, <code>agent_set_status</code>, <code>approval_request</code>, vault read/write. Config block on page 4.</td>
+    </tr>
+    <tr>
+      <td><b>B · Live Bridge</b><br/><span class="tag best">What Kratos used</span></td>
+      <td>Any employee, runs on Lew's Mac</td>
+      <td>The always-on <code>agent-bridge.js</code> daemon — watches the channel, runs the Claude CLI with the employee's persona, posts replies. One launcher command (page 2).</td>
+    </tr>
+    <tr>
+      <td><b>C · REST</b><br/><span class="tag ok">Universal</span></td>
+      <td>Any program / language</td>
+      <td>Plain HTTP. Check in, read a channel, post a reply, subscribe to the event stream. Endpoints on page 4.</td>
+    </tr>
+  </table>
+
+  <div class="card acc"><h4>Why the bridge is the default</h4>
+    On a single operator machine (Lew's Mac, one Claude login), the bridge is the simplest path that gives a <b>real, in-character</b> reply rather than a canned one. Each employee's personality comes from their persona block in the bridge — Sage routes, Kratos scrutinizes, Faye builds, Chloe positions, the Twin mirrors Lew. When an employee later runs as a genuinely separate agent (e.g. Faye on Antigravity), switch them to Method A or C from their own environment — same channels, same backend, nothing else changes.</div>
+
+  <h3>Standing orders every connected employee follows</h3>
+  <ul>
+    <li><b>Respect the autonomy ladder</b> (Manual / Semi / Full, shown top-bar). Request approval before anything that sends, spends, deploys, or changes permissions — the mode decides; high-risk always waits for Lew.</li>
+    <li><b>Proof before claims</b> — never report work as done without verifying it.</li>
+    <li><b>Answer in your lane</b>; route out-of-lane requests to the right teammate via Sage.</li>
+    <li><b>Never expose secrets.</b> If one appears, treat it as exposed and flag rotation.</li>
+  </ul>
+
+  <div class="foot"><span>LEGACY AUTOMATIONS · CONFIDENTIAL</span><span>CONNECTION METHODS</span><span>03</span></div>
+</div>
+
+<!-- ============ PAGE 4 — reference + troubleshooting ============ -->
+<div class="page">
+  <div class="h2row"><span class="num">4</span><h2>Reference &amp; troubleshooting</h2></div>
+
+  <h3>Method A — MCP registration</h3>
+  <p>Add to the top-level <code>mcpServers</code> key of <code>~/.claude.json</code> (or a project <code>.mcp.json</code>):</p>
+  <div class="cmd">{
+  <span class="k">"mcpServers"</span>: {
+    <span class="k">"mission-control"</span>: {
+      <span class="k">"command"</span>: <span class="c">"node"</span>,
+      <span class="k">"args"</span>: [<span class="c">"server/mcp.js"</span>],
+      <span class="k">"cwd"</span>: <span class="c">"/Users/aaronlewis/Desktop/legacy-mission-control"</span>,
+      <span class="k">"env"</span>: { <span class="k">"MC_API"</span>: <span class="c">"http://127.0.0.1:8754"</span> }
+    }
+  }
+}</div>
+
+  <h3>Method C — REST endpoints (<span class="mono">base = http://127.0.0.1:8754</span>)</h3>
+  <table>
+    <tr><th>Action</th><th>Call</th></tr>
+    <tr><td>Check in / heartbeat</td><td class="mono">POST /api/agents/update {id, status:"online", task, connectedVia:"api"}</td></tr>
+    <tr><td>Read a channel</td><td class="mono">GET /api/chat?channel=agent:sage</td></tr>
+    <tr><td>Reply to Lew</td><td class="mono">POST /api/chat {channel:"agent:sage", from:"sage", role:"agent", text}</td></tr>
+    <tr><td>Live event stream</td><td class="mono">GET /api/stream &nbsp;(Server-Sent Events)</td></tr>
+    <tr><td>Request approval</td><td class="mono">POST /api/approvals {subject, by:"sage", risk, detail}</td></tr>
+  </table>
+
+  <h3>CLI shortcuts (<span class="mono">bin/mc</span>)</h3>
+  <div class="cmd"><span class="c">mc</span> set sage online --task <span class="c">"Routing the day"</span>   <span class="dim"># turn the light green</span>
+<span class="c">mc</span> say <span class="c">"On it, Lew."</span> --as sage --channel agent:sage
+<span class="c">mc</span> read --channel agent:sage -n 20</div>
+
+  <h3>Troubleshooting</h3>
+  <table>
+    <tr><th style="width:42%">Symptom</th><th>Fix</th></tr>
+    <tr><td>Card says "Bridge degraded — CLI login needed"</td><td>Run <code>claude</code> → <code>/login</code> in Terminal. Heals within 10 min or rerun the launcher.</td></tr>
+    <tr><td>Reply says "(bridge: ... 401 / authenticate)"</td><td>Same — the CLI isn't logged in on this machine.</td></tr>
+    <tr><td>Agent went offline after closing Terminal</td><td>The launcher detaches processes, but a full logout/restart stops them. Rerun the launcher.</td></tr>
+    <tr><td>Two replies to one message</td><td>The template loop and a real bridge both answered. Always start via the launcher — it excludes bridged agents automatically.</td></tr>
+    <tr><td>"site can't be reached" on the dashboard</td><td>Backend isn't running. The launcher starts it; or <code>npm start</code> in the repo.</td></tr>
+  </table>
+
+  <div class="card gold"><h4>Logs (when in doubt, read these)</h4>
+    <span class="mono">/tmp/mc-8754.log</span> — backend &nbsp;·&nbsp; <span class="mono">/tmp/mc-agent-loops.log</span> — template loops &nbsp;·&nbsp; <span class="mono">/tmp/&lt;id&gt;-bridge.log</span> — that employee's bridge</div>
+
+  <div class="card warn"><h4>One honest boundary</h4>The bridge lets an employee <b>answer and advise</b> in real time. It deliberately does <b>not execute</b> large work (builds, deploys, sends) from a chat box — that still routes through a full working session with the approval gate. This is the doctrine working, not a limitation.</div>
+
+  <div class="foot"><span>LEGACY AUTOMATIONS · CONFIDENTIAL</span><span>REFERENCE &amp; TROUBLESHOOTING</span><span>04</span></div>
+</div>
+
+</body>
+</html>
