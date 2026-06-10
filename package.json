@@ -10,6 +10,9 @@
   "scripts": {
     "start": "node server/server.js",
     "live": "node server/server.js",
+    "agents": "node server/live-agent-loops.js",
+    "live:all": "node server/start-live.js",
+    "kratos-bridge": "node bridges/kratos-bridge.js",
     "mcp": "node server/mcp.js",
     "google-auth": "node server/oauth-google.js"
   },
