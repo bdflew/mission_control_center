@@ -43,8 +43,35 @@ const AGENT_SEED = [
   { id: 'kratos', name: 'Kratos', role: 'CTO · Security / QA' },
   { id: 'faye',   name: 'Faye',   role: 'Lead Builder · Antigravity' },
   { id: 'chloe',  name: 'Chloe',  role: 'Positioning · Brand' },
-  { id: 'lew',    name: 'Legacy Lew', role: 'Founder · Digital Twin' },
+  { id: 'legacylew', name: 'Legacy Lew', role: 'Founder · Digital Twin' },
 ];
+
+// One-time migration: the twin agent used to share the operator's id ('lew'),
+// which made operator messages and twin replies indistinguishable in the UI.
+// The twin is now 'legacylew'; 'lew' is reserved for the human operator.
+function migrateTwinId() {
+  const agents = readJSON('agents.json', null);
+  if (Array.isArray(agents) && agents.some(a => a.id === 'lew')) {
+    writeJSON('agents.json', agents.map(a => a.id === 'lew' ? { ...a, id: 'legacylew' } : a));
+  }
+  const chat = readJSON('chat.json', null);
+  if (chat && chat.channels) {
+    let dirty = false;
+    if (chat.channels['agent:lew']) {
+      chat.channels['agent:legacylew'] = (chat.channels['agent:legacylew'] || []).concat(chat.channels['agent:lew']);
+      delete chat.channels['agent:lew'];
+      dirty = true;
+    }
+    for (const ch of Object.keys(chat.channels)) {
+      chat.channels[ch] = chat.channels[ch].map(m => {
+        if (m.from === 'lew' && m.role === 'agent') { dirty = true; return { ...m, from: 'legacylew' }; }
+        if (ch === 'agent:legacylew' && m.channel === 'agent:lew') { dirty = true; return { ...m, channel: ch }; }
+        return m;
+      });
+    }
+    if (dirty) writeJSON('chat.json', chat);
+  }
+}
 
 function ensureSeed() {
   if (!fs.existsSync(file('agents.json'))) {
@@ -64,8 +91,26 @@ function ensureSeed() {
   if (!fs.existsSync(file('approvals.json'))) {
     writeJSON('approvals.json', []);
   }
+  if (!fs.existsSync(file('mode.json'))) {
+    writeJSON('mode.json', { mode: 'manual', changedAt: new Date().toISOString(), changedBy: 'seed' });
+  }
 }
 ensureSeed();
+migrateTwinId();
+
+// ------------------------------------------------------------- autonomy mode
+// manual = every approval waits for the operator.
+// semi   = low-risk approvals auto-approve; med/high wait.
+// full   = low + med auto-approve; only high-risk waits for the operator.
+const MODES = ['manual', 'semi', 'full'];
+function getMode() { return (readJSON('mode.json', { mode: 'manual' }).mode) || 'manual'; }
+function setMode(mode, by) {
+  if (!MODES.includes(mode)) throw new Error('mode must be one of: ' + MODES.join(', '));
+  const rec = { mode, changedAt: new Date().toISOString(), changedBy: by || 'operator' };
+  writeJSON('mode.json', rec);
+  bus.emit('event', { type: 'mode', mode, changedBy: rec.changedBy });
+  return rec;
+}
 
 // ---------------------------------------------------------------- chat
 function getChannel(channel) {
@@ -145,12 +190,13 @@ function addApproval({ subject, by, risk, detail }) {
   return item;
 }
 
-function resolveApproval(approvalId, decision) {
+function resolveApproval(approvalId, decision, decidedBy) {
   const approvals = readJSON('approvals.json', []);
   const i = approvals.findIndex(a => a.id === approvalId);
   if (i === -1) throw new Error('unknown approval: ' + approvalId);
   approvals[i].state = decision === 'approve' ? 'approved' : 'held';
   approvals[i].resolvedAt = new Date().toISOString();
+  if (decidedBy) approvals[i].decidedBy = decidedBy;
   writeJSON('approvals.json', approvals);
   bus.emit('event', { type: 'approval', approval: approvals[i] });
   return approvals[i];
@@ -161,4 +207,5 @@ module.exports = {
   getChannel, postMessage,
   listAgents, updateAgent, touchAgent,
   listApprovals, addApproval, resolveApproval,
+  getMode, setMode,
 };

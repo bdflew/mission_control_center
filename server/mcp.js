@@ -39,6 +39,7 @@ const TOOLS = [
     run: async () => {
       const b = await apiGET('/api/bootstrap');
       return {
+        autonomyMode: b.mode || 'manual', // manual = wait for operator · semi = low-risk auto-approves · full = low+med auto-approve (high always waits)
         vault: b.vault.ok ? { name: b.vault.vault, notes: b.vault.stats.notes, links: b.vault.stats.links, written7d: b.vault.stats.written7d, clusters: b.vault.clusters.map(c => `${c.name} (${c.count})`) } : { error: b.vault.error },
         agents: b.agents.map(a => ({ id: a.id, name: a.name, status: a.status, task: a.task, lastSeen: a.lastSeen })),
         approvals: b.approvals.filter(a => a.state === 'pending').map(a => ({ id: a.id, subject: a.subject, by: a.by, risk: a.risk })),

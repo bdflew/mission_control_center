@@ -1,0 +1,38 @@
+/* v3-office.css — Living Office: vitals strip + rig polish (v3o- namespace).
+   Pairs with scifi.css .office-vitals / .office-vital base styles. */
+
+.v3o-vitals {
+  padding: 10px 14px;
+  border: 1px solid rgba(35, 214, 245, 0.12);
+  border-radius: 10px;
+  background: rgba(8, 13, 24, 0.55);
+}
+
+.v3o-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  flex: none;
+}
+.v3o-dot--on   { background: #34D399; box-shadow: 0 0 8px rgba(52, 211, 153, 0.65); }
+.v3o-dot--work { background: #23D6F5; box-shadow: 0 0 8px rgba(35, 214, 245, 0.65); animation: v3o-pulse 2.2s ease-in-out infinite; }
+.v3o-dot--gate { background: #E8C766; box-shadow: 0 0 8px rgba(232, 199, 102, 0.65); }
+.v3o-dot--off  { background: #5b6b82; }
+
+.v3o-num {
+  color: var(--fg-1, #E6EDF7);
+  font-weight: 700;
+  margin-right: 2px;
+}
+
+@keyframes v3o-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
+/* honor the dashboard's motion switch */
+[data-motion="off"] .v3o-dot--work { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .v3o-dot--work { animation: none; }
+}

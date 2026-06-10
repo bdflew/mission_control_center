@@ -20,6 +20,7 @@ const MIME = {
   '.json': 'application/json; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
   '.woff': 'font/woff', '.woff2': 'font/woff2', '.map': 'application/json',
+  '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json',
 };
 
 function send(res, code, body, headers = {}) {
@@ -115,7 +116,17 @@ const api = {
       agents: store.listAgents(),
       approvals: store.listApprovals(),
       connections: connections(),
+      mode: store.getMode(),
     });
+  },
+
+  // ---- autonomy ladder: manual / semi / full ----
+  'GET /api/mode': (req, res) => sendJSON(res, 200, { mode: store.getMode() }),
+  'POST /api/mode': async (req, res) => {
+    try {
+      const b = await readBody(req);
+      sendJSON(res, 200, store.setMode(b.mode, b.by || 'operator'));
+    } catch (e) { sendJSON(res, 400, { error: e.message }); }
   },
 
   'GET /api/vault': (req, res) => sendJSON(res, 200, vault.getVault(req._q.force === '1')),
@@ -246,12 +257,21 @@ const api = {
   'GET /api/approvals': (req, res) => sendJSON(res, 200, { approvals: store.listApprovals() }),
 
   'POST /api/approvals': async (req, res) => {
-    try { const b = await readBody(req); sendJSON(res, 200, store.addApproval(b)); }
-    catch (e) { sendJSON(res, 400, { error: e.message }); }
+    try {
+      const b = await readBody(req);
+      let item = store.addApproval(b);
+      // Autonomy gate: semi auto-approves low risk; full auto-approves low+med.
+      // High risk ALWAYS waits for the operator — that line never moves.
+      const mode = store.getMode();
+      const auto = (mode === 'semi' && item.risk === 'low') ||
+                   (mode === 'full' && (item.risk === 'low' || item.risk === 'med'));
+      if (auto) item = store.resolveApproval(item.id, 'approve', 'autonomy:' + mode);
+      sendJSON(res, 200, item);
+    } catch (e) { sendJSON(res, 400, { error: e.message }); }
   },
 
   'POST /api/approvals/resolve': async (req, res) => {
-    try { const b = await readBody(req); sendJSON(res, 200, store.resolveApproval(b.id, b.decision)); }
+    try { const b = await readBody(req); sendJSON(res, 200, store.resolveApproval(b.id, b.decision, b.by || 'operator')); }
     catch (e) { sendJSON(res, 400, { error: e.message }); }
   },
 

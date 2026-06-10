@@ -3,153 +3,516 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Lew · Companion</title>
+<title>Legacy Lew · Companion</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Manrope:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet"/>
 <style>
-  :root { --acc:#23D6F5; --gold:#E8C766; --bg:#070B14; --fg:#DCE7F5; --fg2:#9fb0c4; --fg3:#64748B; }
-  * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.5 -apple-system,'Segoe UI',sans-serif; overflow:hidden; height:100vh; display:flex; flex-direction:column; }
-  body::before { content:''; position:fixed; inset:0; pointer-events:none;
-    background: radial-gradient(420px 260px at 50% -10%, rgba(35,214,245,.10), transparent 70%); }
-  .head { display:flex; align-items:center; gap:10px; padding:14px 16px 8px; }
-  .head .dot { width:8px;height:8px;border-radius:50%; }
-  .head .dot.on { background:#34D399; box-shadow:0 0 8px #34D399; animation:pulse 2s infinite; }
-  .head .dot.off { background:var(--fg3); }
-  .head .t { font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--fg2); font-family:ui-monospace,monospace; }
-  @keyframes pulse { 50% { opacity:.4; } }
-  .stage { text-align:center; padding:4px 0 0; position:relative; }
-  .stage img { width:128px; height:128px; image-rendering:auto; animation:floaty 4.2s ease-in-out infinite; filter:drop-shadow(0 14px 14px rgba(0,0,0,.55)); }
-  .stage.speaking img { animation:floaty 1.1s ease-in-out infinite; }
-  .stage .halo { position:absolute; left:50%; top:108px; transform:translateX(-50%); width:96px; height:18px; border-radius:50%; background:radial-gradient(closest-side, rgba(35,214,245,.35), transparent); }
-  @keyframes floaty { 0%,100% { transform:translateY(0);} 50% { transform:translateY(-7px);} }
-  @media (prefers-reduced-motion: reduce){ .stage img{animation:none;} }
-  .brief { flex:1; overflow-y:auto; padding:8px 16px 12px; }
-  .sec { background:rgba(13,20,36,.66); border:1px solid rgba(35,214,245,.13); border-radius:14px; padding:10px 13px; margin-bottom:9px; backdrop-filter:blur(10px); }
-  .sec h3 { margin:0 0 6px; font-size:10px; letter-spacing:.12em; text-transform:uppercase; font-family:ui-monospace,monospace; color:var(--fg2); display:flex; align-items:center; gap:7px; }
-  .sec.gold h3 { color:var(--gold); } .sec.gold { border-color:rgba(232,199,102,.35); box-shadow:0 0 14px rgba(232,199,102,.12); }
-  .sec.mute { opacity:.62; }
-  .sec li { font-size:12.5px; color:var(--fg); margin:3px 0; list-style:none; }
-  .sec ul { margin:0; padding:0; }
-  .chat { padding:10px 14px 14px; border-top:1px solid rgba(35,214,245,.12); background:rgba(7,11,20,.9); }
-  .reply { font-size:12.5px; color:var(--fg); background:rgba(35,214,245,.07); border:1px solid rgba(35,214,245,.18); border-radius:12px; padding:8px 11px; margin-bottom:9px; max-height:110px; overflow-y:auto; display:none; }
-  .row { display:flex; gap:8px; }
-  input { flex:1; background:rgba(13,20,36,.8); border:1px solid rgba(35,214,245,.22); border-radius:11px; color:var(--fg); padding:9px 12px; font-size:13px; outline:none; }
-  input:focus { border-color:rgba(35,214,245,.55); }
-  button { background:rgba(35,214,245,.14); color:var(--acc); border:1px solid rgba(35,214,245,.4); border-radius:11px; padding:0 13px; cursor:pointer; font-size:13px; }
-  button:hover { background:rgba(35,214,245,.22); }
-  button.ghost { background:transparent; color:var(--fg2); border-color:rgba(100,116,139,.3); }
-  button.ghost.on { color:var(--acc); border-color:rgba(35,214,245,.4); }
-  .foot { display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:10px; color:var(--fg3); font-family:ui-monospace,monospace; }
+  /* The widget IS the avatar — transparent 3D stage, no background walls. */
+  :root {
+    --acc: #23D6F5; --acc2: #6FE8FB; --gold: #E8C766; --good: #34D399; --crit: #F4516B;
+    --fg-1: #ECF3FB; --fg-2: #AFC2D6; --fg-3: #64788F;
+    --mono: 'Space Grotesk', monospace; --body: 'Manrope', sans-serif; --disp: 'Orbitron', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--body); color: var(--fg-1); overflow: hidden;
+    background: radial-gradient(120% 90% at 50% 0%, #0C1526 0%, #070C16 60%, #05080F 100%);
+  }
+  .wrap { display: flex; flex-direction: column; height: 100vh; }
+
+  /* header */
+  .head { display: flex; align-items: center; gap: 10px; padding: 12px 14px 8px; }
+  .head .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--fg-3); box-shadow: 0 0 8px currentColor; }
+  .head .dot.on { background: var(--good); color: var(--good); animation: pulse 2.2s infinite; }
+  @keyframes pulse { 50% { opacity: .45; } }
+  .head .name { font-family: var(--disp); font-size: 13px; letter-spacing: .14em; }
+  .head .sub { font-family: var(--mono); font-size: 9px; color: var(--fg-3); letter-spacing: .12em; }
+  .tabs { margin-left: auto; display: flex; gap: 4px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.09); border-radius: 9px; padding: 3px; }
+  .tab { all: unset; cursor: pointer; font-family: var(--mono); font-size: 10px; letter-spacing: .1em; padding: 4px 10px; border-radius: 7px; color: var(--fg-3); }
+  .tab.on { background: rgba(35,214,245,.14); color: var(--acc2); }
+
+  /* 3D stage */
+  .stage { position: relative; height: 300px; flex-shrink: 0; }
+  .stage canvas { display: block; }
+  .state-ring {
+    position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
+    font-family: var(--mono); font-size: 9px; letter-spacing: .3em; color: var(--fg-3);
+    padding: 4px 12px; border: 1px solid rgba(255,255,255,.1); border-radius: 99px;
+    background: rgba(8,13,24,.7); backdrop-filter: blur(6px); transition: all .25s; text-transform: uppercase;
+  }
+  .state-ring.listening { color: var(--acc2); border-color: rgba(35,214,245,.55); box-shadow: 0 0 18px -4px var(--acc); }
+  .state-ring.thinking { color: var(--gold); border-color: rgba(232,199,102,.5); }
+  .state-ring.speaking { color: var(--good); border-color: rgba(52,211,153,.55); box-shadow: 0 0 18px -4px var(--good); }
+
+  /* updates strip */
+  .updates { padding: 0 14px; }
+  .upd {
+    display: flex; gap: 8px; align-items: baseline; padding: 6px 10px; margin-bottom: 4px;
+    border: 1px solid rgba(35,214,245,.16); border-left: 2px solid var(--acc); border-radius: 8px;
+    background: rgba(12,19,33,.72); font-size: 11px; color: var(--fg-2);
+  }
+  .upd b { color: var(--fg-1); font-weight: 600; }
+  .upd.gold { border-left-color: var(--gold); border-color: rgba(232,199,102,.25); }
+  .upd .t { margin-left: auto; font-family: var(--mono); font-size: 8.5px; color: var(--fg-3); flex-shrink: 0; }
+
+  /* chat */
+  .feed { flex: 1; overflow-y: auto; padding: 8px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .feed::-webkit-scrollbar { width: 4px; } .feed::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 2px; }
+  .msg { max-width: 86%; padding: 8px 12px; border-radius: 13px; font-size: 12.5px; line-height: 1.45; white-space: pre-wrap; word-wrap: break-word; }
+  .msg.me { align-self: flex-end; background: linear-gradient(145deg, rgba(168,123,46,.30), rgba(232,199,102,.16)); border: 1px solid rgba(232,199,102,.3); border-bottom-right-radius: 4px; }
+  .msg.them { align-self: flex-start; background: rgba(16,26,44,.85); border: 1px solid rgba(35,214,245,.2); border-bottom-left-radius: 4px; }
+  .msg.sys { align-self: center; background: none; border: none; font-family: var(--mono); font-size: 9.5px; color: var(--fg-3); letter-spacing: .06em; text-align: center; }
+  .msg .who { display: block; font-family: var(--mono); font-size: 8.5px; letter-spacing: .16em; color: var(--fg-3); margin-bottom: 3px; text-transform: uppercase; }
+
+  /* composer */
+  .composer { display: flex; gap: 7px; padding: 10px 14px 12px; align-items: center; }
+  .composer input {
+    flex: 1; min-width: 0; background: rgba(10,16,28,.9); border: 1px solid rgba(35,214,245,.22);
+    border-radius: 11px; padding: 10px 13px; color: var(--fg-1); font-family: var(--body); font-size: 12.5px; outline: none;
+  }
+  .composer input:focus { border-color: rgba(35,214,245,.5); box-shadow: 0 0 14px -6px var(--acc); }
+  .cbtn {
+    all: unset; cursor: pointer; width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center;
+    background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); color: var(--fg-2); font-size: 15px;
+    transition: all .18s;
+  }
+  .cbtn:hover { border-color: rgba(35,214,245,.45); color: var(--acc2); }
+  .cbtn.on { background: rgba(35,214,245,.16); border-color: rgba(35,214,245,.55); color: var(--acc2); box-shadow: 0 0 14px -5px var(--acc); }
+  .cbtn.live { background: rgba(244,81,107,.18); border-color: rgba(244,81,107,.6); color: #ff9aab; animation: pulse 1.2s infinite; }
+  .cbtn.send { background: linear-gradient(145deg, rgba(35,214,245,.2), rgba(14,143,168,.25)); border-color: rgba(35,214,245,.45); color: var(--acc2); }
+
+  .foot { padding: 0 14px 10px; font-family: var(--mono); font-size: 8.5px; letter-spacing: .1em; color: var(--fg-3); display: flex; gap: 12px; }
+  @media (prefers-reduced-motion: reduce) { .head .dot.on, .cbtn.live { animation: none; } }
 </style>
 </head>
 <body>
-  <div class="head"><span class="dot off" id="dot"></span><span class="t" id="title">Companion · connecting…</span></div>
-  <div class="stage" id="stage"><div class="halo"></div><img id="avatar" src="assets/char-lew.png" alt="Legacy Lew"/></div>
-  <div class="brief" id="brief"></div>
-  <div class="chat">
-    <div class="reply" id="reply"></div>
-    <div class="row">
-      <input id="msg" placeholder="Ask Lew anything…" aria-label="Ask the twin"/>
-      <button id="send" title="Send">↩</button>
-      <button id="voice" class="ghost" title="Speak replies aloud">🔊</button>
+<div class="wrap">
+  <div class="head">
+    <span class="dot" id="dot"></span>
+    <div>
+      <div class="name" id="name">LEGACY LEW</div>
+      <div class="sub" id="sub">connecting…</div>
     </div>
-    <div class="foot">
-      <span id="model">twin: checking…</span>
-      <span><button class="ghost" id="notify" style="font-size:10px;padding:3px 8px;">enable alerts</button></span>
+    <div class="tabs">
+      <button class="tab on" data-agent="twin" id="tabTwin">LEW</button>
+      <button class="tab" data-agent="hermes" id="tabHermes">HERMES</button>
     </div>
   </div>
-<script>
-(function () {
-  const API = location.origin;
-  const $ = id => document.getElementById(id);
-  let speakOn = localStorage.getItem('mcCompanionSpeak') === '1';
-  let twinOnline = false;
-  updateVoiceBtn();
 
-  function updateVoiceBtn(){ $('voice').className = 'ghost' + (speakOn ? ' on' : ''); }
-  $('voice').onclick = () => { speakOn = !speakOn; localStorage.setItem('mcCompanionSpeak', speakOn ? '1' : '0'); updateVoiceBtn(); };
+  <div class="stage" id="stage">
+    <div class="state-ring" id="stateRing">IDLE</div>
+  </div>
 
-  function speak(text){
-    if (!speakOn) return;
-    $('stage').classList.add('speaking');
-    // premium voice if configured, browser voice otherwise — honest fallback
-    fetch(API + '/api/tts', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text }) })
-      .then(r => { if (!r.ok) throw 0; return r.blob(); })
-      .then(b => { const a = new Audio(URL.createObjectURL(b)); a.onended = done; a.play().catch(done); })
-      .catch(() => {
-        try {
-          const u = new SpeechSynthesisUtterance(text);
-          u.rate = 1.0; u.pitch = 0.92; u.onend = done;
-          speechSynthesis.cancel(); speechSynthesis.speak(u);
-        } catch (e) { done(); }
-      });
-    function done(){ $('stage').classList.remove('speaking'); }
+  <div class="updates" id="updates"></div>
+  <div class="feed" id="feed"></div>
+
+  <div class="composer">
+    <button class="cbtn" id="micBtn" title="Push to talk (speech → text)">🎙</button>
+    <input id="input" placeholder="Talk to your twin…" autocomplete="off"/>
+    <button class="cbtn" id="voiceLoop" title="Voice conversation — speak, hear the reply, it listens again">∞</button>
+    <button class="cbtn" id="spkBtn" title="Speak replies aloud">🔊</button>
+    <button class="cbtn send" id="sendBtn" title="Send">➤</button>
+  </div>
+  <div class="foot">
+    <span id="voiceHint">VOICE: browser</span><span>STT: Web Speech</span><span id="modelHint"></span>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.165.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.165.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const API = location.origin && location.origin.startsWith('http') ? location.origin : 'http://127.0.0.1:8754';
+const $ = id => document.getElementById(id);
+const get = p => fetch(API + p).then(r => r.json());
+const post = (p, b) => fetch(API + p, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) });
+
+/* ============================================================
+   THE 3D AVATAR — transparent scene, no background, real states.
+   Default rig: the chibi art as a parallax holo-card character —
+   it turns to face your cursor and swaps between the front and
+   three-quarter angles, breathes, floats, and bounces to the
+   actual audio energy while speaking. Plug-and-play upgrade:
+   drop a rigged GLB at assets/models/lew.glb and it loads that
+   instead (animations included) — no code changes.
+   ============================================================ */
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setClearColor(0x000000, 0); // no background — the widget is the character
+stage.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+const cam = new THREE.PerspectiveCamera(34, 1, 0.1, 50);
+cam.position.set(0, 0.18, 4.4);
+scene.add(new THREE.AmbientLight(0xffffff, 1.15));
+const key = new THREE.DirectionalLight(0x9fdcff, 1.2); key.position.set(2, 3, 4); scene.add(key);
+
+const rig = new THREE.Group(); scene.add(rig);
+let mode3d = 'card'; // 'card' | 'glb'
+let cardMesh = null, glowSprite = null, shadowMesh = null, mixer = null, particles = null;
+const TEX = {};
+const texLoader = new THREE.TextureLoader();
+function loadTex(name, path) {
+  return new Promise(res => texLoader.load(path, t => { t.colorSpace = THREE.SRGBColorSpace; TEX[name] = t; res(t); }, undefined, () => res(null)));
+}
+
+function radialSprite(rgb, size = 256) {
+  const cv = document.createElement('canvas'); cv.width = cv.height = size;
+  const x = cv.getContext('2d');
+  const g = x.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+  g.addColorStop(0, `rgba(${rgb},0.55)`); g.addColorStop(1, `rgba(${rgb},0)`);
+  x.fillStyle = g; x.fillRect(0, 0, size, size);
+  const t = new THREE.CanvasTexture(cv);
+  return new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false }));
+}
+
+async function buildCardRig() {
+  await Promise.all([
+    loadTex('front', 'assets/avatar-front.png'),
+    loadTex('three', 'assets/avatar-three-quarter.png'),
+  ]);
+  const t = TEX.front; if (!t) return;
+  const ar = t.image.width / t.image.height;
+  const H = 2.6, W = H * ar;
+  cardMesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(W, H),
+    new THREE.MeshBasicMaterial({ map: t, transparent: true, side: THREE.DoubleSide })
+  );
+  cardMesh.position.y = -0.1;
+  rig.add(cardMesh);
+  // aura glow behind him
+  glowSprite = radialSprite('35,214,245'); glowSprite.scale.set(2.9, 2.9, 1); glowSprite.position.set(0, -0.1, -0.4);
+  rig.add(glowSprite);
+  // soft contact shadow
+  shadowMesh = radialSprite('0,0,0'); shadowMesh.material.opacity = 0.8;
+  shadowMesh.scale.set(1.7, 0.42, 1); shadowMesh.position.set(0, -1.52, 0);
+  scene.add(shadowMesh);
+  // ambient particle ring
+  const pGeo = new THREE.BufferGeometry();
+  const N = 26, pos = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) { const a = (i / N) * Math.PI * 2; pos[i*3] = Math.cos(a) * 1.6; pos[i*3+1] = -1.1 + Math.random() * 2.2; pos[i*3+2] = Math.sin(a) * 0.7; }
+  pGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  particles = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0x23D6F5, size: 0.035, transparent: true, opacity: 0.7, depthWrite: false }));
+  rig.add(particles);
+}
+
+async function tryGLB() {
+  try {
+    const head = await fetch('assets/models/lew.glb');
+    if (!head.ok) return false;
+    const buf = await head.arrayBuffer();
+    const gltf = await new GLTFLoader().parseAsync(buf, 'assets/models/');
+    const glbRoot = gltf.scene; glbRoot.scale.set(1.4, 1.4, 1.4); glbRoot.position.y = -1.4;
+    rig.add(glbRoot);
+    if (gltf.animations && gltf.animations.length) {
+      mixer = new THREE.AnimationMixer(glbRoot);
+      mixer.clipAction(gltf.animations[0]).play();
+    }
+    mode3d = 'glb';
+    return true;
+  } catch (e) { return false; }
+}
+
+/* ---- animation state machine — every state is driven by a real signal ---- */
+let state = 'idle'; // idle | wave | listening | thinking | speaking
+let stateT = 0, audioEnergy = 0, notifyKick = 0;
+const pointer = { x: 0, y: 0 };
+addEventListener('pointermove', e => {
+  pointer.x = (e.clientX / innerWidth) * 2 - 1;
+  pointer.y = (e.clientY / innerHeight) * 2 - 1;
+});
+function setState(s) {
+  if (state === s) return;
+  state = s; stateT = 0;
+  const ring = $('stateRing');
+  ring.textContent = s.toUpperCase();
+  ring.className = 'state-ring ' + (s === 'listening' ? 'listening' : s === 'thinking' ? 'thinking' : s === 'speaking' ? 'speaking' : '');
+}
+
+function size() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix();
+}
+addEventListener('resize', size);
+
+const clock = new THREE.Clock();
+let lastFacing = 'front';
+function tick() {
+  requestAnimationFrame(tick);
+  const dt = clock.getDelta(); const t = clock.elapsedTime; stateT += dt;
+  if (mixer) mixer.update(dt);
+
+  // breathing + float — alive at rest
+  const breathe = 1 + Math.sin(t * 1.7) * 0.012;
+  const bob = Math.sin(t * 1.1) * 0.05;
+
+  // pointer parallax — he turns to face your cursor
+  rig.rotation.y += ((pointer.x * 0.42) - rig.rotation.y) * 0.07;
+  rig.rotation.x += ((-pointer.y * 0.10) - rig.rotation.x) * 0.07;
+
+  // angle swap past the turn threshold (card mode) = a genuine 3D turn read
+  if (mode3d === 'card' && cardMesh && TEX.three) {
+    const want = Math.abs(rig.rotation.y) > 0.21 ? 'three' : 'front';
+    if (want !== lastFacing) {
+      cardMesh.material.map = TEX[want]; cardMesh.material.needsUpdate = true;
+      lastFacing = want;
+    }
+    cardMesh.scale.x = rig.rotation.y < -0.21 ? -1 : 1; // mirror for left turns
   }
 
-  // ---- twin status + brief ----
-  function loadStatus(){
-    fetch(API + '/api/twin/status').then(r => r.json()).then(s => {
-      twinOnline = s.online;
-      $('model').textContent = s.online ? ('twin: ' + s.model) : 'twin offline — set ANTHROPIC_API_KEY';
-      $('title').textContent = (s.displayName || 'Companion') + (s.online ? ' · online' : ' · brief only');
-    }).catch(() => { $('title').textContent = 'Companion · backend offline'; });
+  // state-driven motion
+  let squash = 1, glow = 0.55;
+  if (state === 'wave') { rig.rotation.z = Math.sin(stateT * 9) * 0.07 * Math.max(0, 1 - stateT / 1.6); if (stateT > 1.7) setState('idle'); }
+  else if (state === 'listening') { glow = 0.8 + Math.sin(t * 5) * 0.15; }
+  else if (state === 'thinking') { rig.rotation.z += ((Math.sin(t * 0.8) * 0.04) - rig.rotation.z) * 0.05; glow = 0.7; }
+  else if (state === 'speaking') {
+    squash = 1 + audioEnergy * 0.06;               // audio-reactive bounce
+    glow = 0.7 + audioEnergy * 1.4;                // voice energy → aura
+    rig.position.y = bob + audioEnergy * 0.045;
   }
-  function loadBrief(){
-    fetch(API + '/api/brief').then(r => r.json()).then(b => {
-      $('dot').className = 'dot on';
-      const el = $('brief'); el.innerHTML = '';
-      b.sections.forEach(s => {
-        const d = document.createElement('div');
-        d.className = 'sec ' + (s.tone === 'gold' ? 'gold' : s.tone === 'mute' ? 'mute' : '');
-        const h = document.createElement('h3'); h.textContent = s.title; d.appendChild(h);
-        const ul = document.createElement('ul');
-        s.lines.forEach(l => { const li = document.createElement('li'); li.textContent = l; ul.appendChild(li); });
-        d.appendChild(ul); el.appendChild(d);
-      });
-    }).catch(() => {
-      $('dot').className = 'dot off';
-      $('brief').innerHTML = '<div class="sec mute"><h3>Backend offline</h3><ul><li>Start Mission Control: npm start</li></ul></div>';
+  else { rig.rotation.z *= 0.92; }
+  if (notifyKick > 0) { rig.position.y = bob + Math.sin(notifyKick * 14) * 0.09 * notifyKick; notifyKick = Math.max(0, notifyKick - dt * 1.4); }
+  else if (state !== 'speaking') rig.position.y = bob;
+
+  rig.scale.set(breathe, (2 - breathe) * squash, breathe);
+  if (glowSprite) { glowSprite.material.opacity = Math.min(1, glow * 0.5); const gs = 2.9 + audioEnergy * 0.9; glowSprite.scale.set(gs, gs, 1); }
+  if (particles) { particles.rotation.y = t * 0.25; particles.material.opacity = 0.4 + glow * 0.3; }
+  if (shadowMesh) { const sc = 1.7 - rig.position.y * 0.5; shadowMesh.scale.set(sc, 0.42 * (sc / 1.7), 1); }
+
+  renderer.render(scene, cam);
+}
+
+(async () => {
+  if (!(await tryGLB())) await buildCardRig();
+  size(); tick(); setState('wave');
+})();
+
+/* ============================================================
+   VOICE — provider-pluggable pipeline.
+   SPEAK: /api/tts (ElevenLabs proxy, key stays server-side) →
+   WebAudio analyser drives the avatar's voice energy; honest
+   fallback to the browser voice. LISTEN: Web Speech push-to-talk.
+   The ∞ button chains listen → think → speak → listen again
+   (speech-to-speech). To swap in another provider later, only
+   speakProvider() / listenOnce() change.
+   ============================================================ */
+const AC = new (window.AudioContext || window.webkitAudioContext)();
+let analyser = null;
+(function meterLoop() {
+  if (analyser) {
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(data);
+    let sum = 0; for (let i = 2; i < 40; i++) sum += data[i];
+    audioEnergy = Math.min(1, (sum / 38) / 110);
+  } else if (state !== 'speaking') audioEnergy *= 0.9;
+  requestAnimationFrame(meterLoop);
+})();
+
+async function speakProvider(text) {
+  // Tier 2: premium voice through the backend proxy
+  try {
+    const r = await post('/api/tts', { text });
+    if (!r.ok) throw 0;
+    const blob = await r.blob();
+    $('voiceHint').textContent = 'VOICE: ElevenLabs';
+    return await new Promise((resolve) => {
+      const a = new Audio(URL.createObjectURL(blob));
+      const src = AC.createMediaElementSource(a);
+      analyser = AC.createAnalyser(); analyser.fftSize = 128;
+      src.connect(analyser); analyser.connect(AC.destination);
+      const fin = () => { analyser = null; resolve(); };
+      a.onended = fin; a.onerror = fin;
+      AC.resume(); a.play().catch(fin);
     });
-  }
-  loadStatus(); loadBrief();
-  setInterval(loadBrief, 90000);
-
-  // ---- ask the twin ----
-  function send(){
-    const t = $('msg').value.trim(); if (!t) return;
-    $('msg').value = ''; const r = $('reply');
-    r.style.display = 'block'; r.textContent = '…';
-    fetch(API + '/api/twin/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text: t }) })
-      .then(x => x.json()).then(j => {
-        r.textContent = j.reply || j.error || 'no reply';
-        if (j.reply) speak(j.reply);
-      }).catch(e => { r.textContent = 'error: ' + e; });
-  }
-  $('send').onclick = send;
-  $('msg').addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
-
-  // ---- live alerts (SSE → system notifications) ----
-  $('notify').onclick = () => Notification.requestPermission().then(p => {
-    $('notify').textContent = p === 'granted' ? 'alerts on' : 'alerts blocked';
+  } catch (e) { /* honest fallback below */ }
+  $('voiceHint').textContent = 'VOICE: browser';
+  return new Promise(resolve => {
+    if (!('speechSynthesis' in window)) return resolve();
+    const u = new SpeechSynthesisUtterance(text.replace(/[*_`#>]/g, '').slice(0, 600));
+    u.pitch = 0.95; u.rate = 1.0;
+    let alive = true; // no analyser on synth — drive energy with a speech-paced envelope
+    (function fake() { if (!alive) return; audioEnergy = 0.25 + Math.abs(Math.sin(performance.now() / 95)) * 0.5; requestAnimationFrame(fake); })();
+    const fin = () => { alive = false; audioEnergy = 0; resolve(); };
+    u.onend = fin; u.onerror = fin;
+    speechSynthesis.cancel(); speechSynthesis.speak(u);
   });
-  function notify(title, body){
-    if (Notification.permission === 'granted') new Notification(title, { body, icon: 'assets/la-symbol.png' });
+}
+
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let stopListen = null;
+function listenOnce() {
+  return new Promise(resolve => {
+    if (!SR) return resolve(null);
+    const rec = new SR(); rec.lang = 'en-US'; rec.interimResults = false; rec.maxAlternatives = 1;
+    setState('listening'); $('micBtn').classList.add('live');
+    let done = false;
+    const fin = v => { if (done) return; done = true; $('micBtn').classList.remove('live'); if (state === 'listening') setState('idle'); resolve(v); };
+    rec.onresult = e => fin(e.results[0] && e.results[0][0] ? e.results[0][0].transcript : null);
+    rec.onerror = () => fin(null);
+    rec.onend = () => fin(null);
+    try { rec.start(); } catch { fin(null); }
+    stopListen = () => { try { rec.stop(); } catch {} };
+  });
+}
+
+/* ============================================================
+   CHAT — Lew (the Claude-backed twin) or Hermes (plug-and-play:
+   any real Hermes agent that connects via MCP/CLI/REST and
+   watches channel "hermes" answers here, voice included).
+   ============================================================ */
+let agent = 'twin';
+let twinMeta = { displayName: 'Legacy Lew', agentId: 'legacylew', online: false, model: '' };
+const feed = $('feed');
+
+function addMsg(kind, text, who) {
+  const el = document.createElement('div');
+  el.className = 'msg ' + kind;
+  if (who) { const w = document.createElement('span'); w.className = 'who'; w.textContent = who; el.appendChild(w); }
+  el.appendChild(document.createTextNode(text));
+  feed.appendChild(el); feed.scrollTop = feed.scrollHeight;
+  return el;
+}
+
+async function sendText(raw) {
+  const text = (raw || '').trim(); if (!text) return null;
+  addMsg('me', text, 'You');
+  setState('thinking');
+  try {
+    if (agent === 'twin') {
+      const r = await post('/api/twin/chat', { text, from: 'lew' });
+      const d = await r.json();
+      setState('idle');
+      if (!r.ok) { addMsg('sys', d.error || 'twin unavailable'); return null; }
+      addMsg('them', d.reply, twinMeta.displayName);
+      return d.reply;
+    } else {
+      await post('/api/chat', { channel: 'hermes', from: 'lew', role: 'operator', text });
+      setState('idle');
+      return null; // a real Hermes agent answers over SSE if connected
+    }
+  } catch (e) { setState('idle'); addMsg('sys', 'backend unreachable'); return null; }
+}
+
+async function sendAndSpeak(raw) {
+  const reply = await sendText(raw);
+  if (reply && speakOn()) { setState('speaking'); await speakProvider(reply); setState('idle'); }
+  return reply;
+}
+
+/* speak-replies toggle */
+const speakOn = () => localStorage.getItem('mcCompanionSpeak') === '1';
+function renderSpk() { $('spkBtn').classList.toggle('on', speakOn()); }
+$('spkBtn').onclick = () => { localStorage.setItem('mcCompanionSpeak', speakOn() ? '0' : '1'); renderSpk(); };
+renderSpk();
+
+/* composer wiring */
+$('sendBtn').onclick = () => { const v = $('input').value; $('input').value = ''; sendAndSpeak(v); };
+$('input').addEventListener('keydown', e => { if (e.key === 'Enter') { const v = $('input').value; $('input').value = ''; sendAndSpeak(v); } });
+$('micBtn').onclick = async () => {
+  if (!SR) return addMsg('sys', 'voice input needs Chrome (Web Speech API)');
+  const heard = await listenOnce();
+  if (heard) { $('input').value = ''; sendAndSpeak(heard); }
+};
+
+/* ∞ speech-to-speech conversation loop */
+let loopOn = false;
+$('voiceLoop').onclick = async () => {
+  if (!SR) return addMsg('sys', 'voice conversation needs Chrome (Web Speech API)');
+  loopOn = !loopOn;
+  $('voiceLoop').classList.toggle('on', loopOn);
+  if (loopOn) {
+    addMsg('sys', 'voice conversation on — speak when the ring says LISTENING');
+    if (!speakOn()) { localStorage.setItem('mcCompanionSpeak', '1'); renderSpk(); }
+    while (loopOn) {
+      const heard = await listenOnce();
+      if (!loopOn) break;
+      if (heard == null || !heard.trim()) continue;   // silence → listen again
+      const reply = await sendText(heard);
+      if (reply) { setState('speaking'); await speakProvider(reply); setState('idle'); }
+      if (agent !== 'twin') break; // hermes replies async — don't hot-loop
+    }
+    setState('idle');
+  } else if (stopListen) stopListen();
+};
+
+/* agent tabs */
+function setAgent(a) {
+  agent = a;
+  $('tabTwin').classList.toggle('on', a === 'twin');
+  $('tabHermes').classList.toggle('on', a === 'hermes');
+  $('name').textContent = a === 'twin' ? twinMeta.displayName.toUpperCase() : 'HERMES';
+  $('input').placeholder = a === 'twin' ? 'Talk to your twin…' : 'Message Hermes (channel: hermes)…';
+  feed.innerHTML = '';
+  if (a === 'hermes') {
+    get('/api/chat?channel=hermes').then(d => {
+      (d.messages || []).slice(-12).forEach(m => addMsg(m.role === 'operator' ? 'me' : 'them', m.text, m.role === 'operator' ? 'You' : m.from));
+      addMsg('sys', 'plug-and-play: any agent that connects via MCP / CLI / REST and watches channel “hermes” answers here');
+    }).catch(() => {});
+  } else {
+    get('/api/chat?channel=agent:' + twinMeta.agentId).then(d => {
+      (d.messages || []).slice(-10).forEach(m => addMsg(m.role === 'operator' ? 'me' : 'them', m.text, m.role === 'operator' ? 'You' : twinMeta.displayName));
+    }).catch(() => {});
   }
+}
+$('tabTwin').onclick = () => setAgent('twin');
+$('tabHermes').onclick = () => setAgent('hermes');
+
+/* ============================================================
+   UPDATES — real events only: approvals / agent status / mode
+   over SSE, plus the server-composed brief on open.
+   ============================================================ */
+const updates = $('updates');
+function pushUpdate(html, tone) {
+  const el = document.createElement('div');
+  el.className = 'upd' + (tone === 'gold' ? ' gold' : '');
+  el.innerHTML = html + '<span class="t">' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + '</span>';
+  updates.prepend(el);
+  while (updates.children.length > 2) updates.lastChild.remove();
+  notifyKick = 1; // the avatar physically reacts to real news
+}
+
+async function boot() {
+  try {
+    const ts = await get('/api/twin/status');
+    twinMeta = { displayName: ts.displayName || 'Legacy Lew', agentId: ts.agentId || 'legacylew', online: !!ts.online, model: ts.model || '' };
+    $('dot').classList.add('on');
+    $('sub').textContent = twinMeta.online ? 'twin online · ' + twinMeta.model : 'twin offline — set ANTHROPIC_API_KEY';
+    $('modelHint').textContent = twinMeta.online ? ('MODEL: ' + twinMeta.model) : 'TWIN OFFLINE';
+  } catch { $('sub').textContent = 'backend offline — npm start'; }
+  setAgent('twin');
+  try {
+    const b = await get('/api/brief');
+    const needs = (b.sections || []).find(s => s.id === 'approvals');
+    if (needs && needs.tone === 'gold') pushUpdate('<b>' + needs.lines[0] + '</b>', 'gold');
+    else pushUpdate('<b>Queue clear.</b> Nothing waiting on you.');
+  } catch {}
+  // live events
   try {
     const es = new EventSource(API + '/api/stream');
-    es.onmessage = (e) => {
-      let evt; try { evt = JSON.parse(e.data); } catch { return; }
-      if (evt.type === 'approval' && evt.approval && evt.approval.state === 'pending') {
-        notify('Approval needs you', evt.approval.subject + ' — ' + evt.approval.by + ' (' + (evt.approval.risk || 'low') + ' risk)');
-        loadBrief();
+    es.onmessage = ev => {
+      let d; try { d = JSON.parse(ev.data); } catch { return; }
+      if (d.type === 'approval' && d.approval) {
+        if (d.approval.state === 'pending') pushUpdate('<b>Approval needs you:</b> ' + d.approval.subject + ' (' + d.approval.risk + ')', 'gold');
+        else pushUpdate('<b>' + d.approval.subject + '</b> → ' + d.approval.state + (String(d.approval.decidedBy || '').startsWith('autonomy') ? ' · AUTO' : ''));
+        if ('Notification' in window && Notification.permission === 'granted' && d.approval.state === 'pending') new Notification('Approval needs you', { body: d.approval.subject });
       }
-      if (evt.type === 'approval' && evt.approval && evt.approval.state !== 'pending') loadBrief();
-      if (evt.type === 'agent') loadBrief();
-      if (evt.type === 'chat' && evt.message && evt.message.role === 'system') {
-        notify('Mission Control', evt.message.text);
+      if (d.type === 'agent' && d.agent) pushUpdate('<b>' + d.agent.name + '</b> → ' + (d.agent.statusLabel || d.agent.status));
+      if (d.type === 'mode') pushUpdate('<b>Autonomy</b> → ' + d.mode);
+      if (d.type === 'chat' && d.message && d.message.channel === 'hermes' && d.message.role !== 'operator' && agent === 'hermes') {
+        addMsg('them', d.message.text, d.message.from);
+        if (speakOn()) { setState('speaking'); speakProvider(d.message.text).then(() => setState('idle')); }
       }
     };
-  } catch (e) { /* offline — brief poll still works */ }
-})();
+  } catch {}
+  if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+}
+boot();
 </script>
 </body>
 </html>

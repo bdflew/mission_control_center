@@ -1,0 +1,163 @@
+/* ============================================================
+   v3-home.css — Mission Control HOME · alien-tech command bridge
+   Owned by home.jsx (v3). Loads AFTER home.css + scifi.css, so it
+   may override both. Selectors are .v3h-* prefixed or scoped under
+   a .v3h-* parent to avoid collisions with other pages.
+   Readability doctrine: panels stay solid glass, numbers stay big.
+   All NEW motion respects [data-motion="off"] + prefers-reduced-motion.
+   ============================================================ */
+
+/* ---------- hero: holographic command header ---------- */
+.v3h-hero { padding: 20px 24px 18px; margin-bottom: var(--gap-grid, 16px); }
+.v3h-hero__top { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+.v3h-hero__id { min-width: 0; flex: 1 1 380px; }
+.v3h-hero__greet { font-size: 34px; margin-top: 10px; text-shadow: 0 0 30px rgba(35, 214, 245, 0.14); }
+.v3h-hero__greet .accent { filter: drop-shadow(0 0 16px rgba(232, 199, 102, 0.35)); }
+.v3h-hero__sum { margin-top: 9px; }
+.v3h-hero__meta { padding-top: 6px; justify-content: flex-end; }
+
+/* HoloStat readout row — 4 channels separated by thin conduits */
+.v3h-hero__stats {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 18px; padding-top: 16px;
+  border-top: 1px dashed color-mix(in srgb, var(--acc, #23D6F5) 20%, transparent);
+}
+.v3h-hero__stat { padding: 2px 20px; min-width: 0; }
+.v3h-hero__stat:first-child { padding-left: 2px; }
+.v3h-hero__stat + .v3h-hero__stat { border-left: 1px solid color-mix(in srgb, var(--acc, #23D6F5) 16%, transparent); }
+.v3h-hero__rail { margin-top: 18px; }
+
+/* ---------- panel heads: eyebrow + title stack ---------- */
+.v3h-phead { align-items: flex-start; }
+.v3h-phead__id { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.v3h-phead .hud-chip { white-space: nowrap; flex-shrink: 0; }
+
+/* autonomy hint (approvals) — one line, mode-tinted badge */
+.v3h-autohint {
+  display: flex; align-items: center; gap: 8px; max-width: 100%;
+  font-family: var(--font-body); font-size: 11.5px; color: var(--fg-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.v3h-autohint__mode {
+  flex-shrink: 0; padding: 2px 7px; border-radius: 5px;
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: .18em; text-transform: uppercase;
+  border: 1px solid rgba(232, 199, 102, 0.45); color: #F3D27A; background: rgba(216, 167, 74, 0.10);
+}
+.v3h-autohint__mode.is-semi { border-color: rgba(35, 214, 245, 0.45); color: #6FE8FB; background: rgba(35, 214, 245, 0.10); }
+.v3h-autohint__mode.is-full { border-color: rgba(52, 211, 153, 0.45); color: #5BEFC3; background: rgba(52, 211, 153, 0.10); }
+
+/* ---------- holo panel hover lift + glow ---------- */
+.v3h-panel { transition: transform .22s var(--ease-out, ease), box-shadow .22s, border-color .22s; }
+.v3h-panel:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--acc, #23D6F5) 42%, transparent);
+  box-shadow:
+    0 24px 60px -26px rgba(0, 0, 0, 0.85),
+    0 0 34px -14px color-mix(in srgb, var(--acc, #23D6F5) 45%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.v3h-panel.holo--gold:hover {
+  border-color: rgba(232, 199, 102, 0.52);
+  box-shadow:
+    0 24px 60px -26px rgba(0, 0, 0, 0.85),
+    0 0 34px -14px rgba(232, 199, 102, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* ---------- metric cards ---------- */
+.v3h-metric { transition: transform .2s var(--ease-out, ease), box-shadow .2s, border-color .2s; }
+.v3h-metric:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--acc, #23D6F5) 45%, transparent); }
+.v3h-metric .mc-metric__val { font-size: 31px; }
+/* repair the ::after collision: .mc-metric.is-featured::after (gold wash)
+   vs .holo::after (corner bracket) target the same pseudo — restore the
+   bracket geometry and move the gold wash onto the card background. */
+.v3h-metric.is-featured::after { inset: auto; width: 14px; height: 14px; bottom: -1px; right: -1px; background: none; }
+.v3h-metric.is-featured {
+  background:
+    radial-gradient(70% 120% at 100% 0%, rgba(216, 167, 74, 0.12), transparent 60%),
+    linear-gradient(180deg, rgba(16, 26, 44, 0.86), rgba(9, 15, 28, 0.92));
+}
+
+/* ---------- agent cards: accent conduit line + lift/glow ---------- */
+.v3h-agents .mc-agentcard { background: linear-gradient(165deg, rgba(16, 24, 38, 0.85), rgba(10, 16, 27, 0.9)); }
+.v3h-agents .mc-agentcard::after {
+  content: ''; position: absolute; left: 0; top: 14px; bottom: 14px; width: 2px; border-radius: 2px;
+  background: linear-gradient(180deg, transparent, var(--ag-acc, #23D6F5) 30%, var(--ag-acc, #23D6F5) 70%, transparent);
+  opacity: .5; pointer-events: none; transition: opacity .2s, box-shadow .2s;
+}
+.v3h-agents .mc-agentcard:hover { transform: translateY(-3px); }
+.v3h-agents .mc-agentcard:hover::after {
+  opacity: 1; box-shadow: 0 0 14px var(--ag-glow, rgba(35, 214, 245, 0.4));
+  animation: v3hConduitPulse calc(1.8s / max(var(--motion-scale, 1), 0.0001)) ease-in-out infinite;
+}
+@keyframes v3hConduitPulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+
+/* roster rows get the same conduit on hover/focus */
+.v3h-roster .mc-roster__row { position: relative; }
+.v3h-roster .mc-roster__row::before {
+  content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 2px; border-radius: 2px;
+  background: linear-gradient(180deg, transparent, var(--ag-acc, #23D6F5) 30%, var(--ag-acc, #23D6F5) 70%, transparent);
+  opacity: 0; pointer-events: none; transition: opacity .18s;
+}
+.v3h-roster .mc-roster__row:hover::before,
+.v3h-roster .mc-roster__row:focus-visible::before { opacity: .9; }
+
+/* ---------- approvals: make the resolve flash actually glide ---------- */
+.v3h-approve-row { transition: opacity .3s ease, transform .3s ease, border-color .16s, background .16s; }
+
+/* ---------- chip repair (scoped): .mc-chip.emerald exists nowhere in the
+   shared sheets, so Faye's status chip rendered unstyled on this page ---------- */
+.v3h-wrap .mc-chip.emerald { background: rgba(52, 211, 153, 0.12); color: #6EE7B7; border: 1px solid rgba(52, 211, 153, 0.38); }
+.v3h-wrap .mc-chip.emerald .dot { background: #34D399; box-shadow: 0 0 6px #34D399; }
+
+/* ---------- empty states (honest, quiet) ---------- */
+.v3h-empty {
+  padding: 18px 8px; text-align: center;
+  font-family: var(--font-body); font-size: 12px; color: var(--fg-3); line-height: 1.55;
+}
+
+/* ---------- entrance stagger ----------
+   fadeUp is transform-only (never invisible); backwards fill holds the
+   offset frame during the delay so nothing jumps. */
+.v3h-metrics > .fade-up,
+.v3h-bento > .fade-up,
+.v3h-bento > * > .fade-up { animation-fill-mode: backwards; }
+.v3h-metrics > .fade-up:nth-child(1) { animation-delay: .05s; }
+.v3h-metrics > .fade-up:nth-child(2) { animation-delay: .10s; }
+.v3h-metrics > .fade-up:nth-child(3) { animation-delay: .15s; }
+.v3h-metrics > .fade-up:nth-child(4) { animation-delay: .20s; }
+.v3h-bento > :nth-child(1).fade-up, .v3h-bento > :nth-child(1) > .fade-up { animation-delay: .12s; }
+.v3h-bento > :nth-child(2).fade-up, .v3h-bento > :nth-child(2) > .fade-up { animation-delay: .17s; }
+.v3h-bento > :nth-child(3).fade-up, .v3h-bento > :nth-child(3) > .fade-up { animation-delay: .22s; }
+.v3h-bento > :nth-child(4).fade-up, .v3h-bento > :nth-child(4) > .fade-up { animation-delay: .27s; }
+.v3h-bento > :nth-child(5).fade-up, .v3h-bento > :nth-child(5) > .fade-up { animation-delay: .32s; }
+.v3h-bento > :nth-child(6).fade-up, .v3h-bento > :nth-child(6) > .fade-up { animation-delay: .37s; }
+.v3h-bento > :nth-child(7).fade-up, .v3h-bento > :nth-child(7) > .fade-up { animation-delay: .42s; }
+.v3h-bento > :nth-child(8).fade-up, .v3h-bento > :nth-child(8) > .fade-up { animation-delay: .47s; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 1100px) {
+  .v3h-hero__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 14px; }
+  .v3h-hero__stat:nth-child(2n + 1) { border-left: none; padding-left: 2px; }
+}
+@media (max-width: 640px) {
+  .v3h-hero { padding: 16px 16px 14px; }
+  .v3h-hero__greet { font-size: 30px; }
+  .v3h-hero__stat { padding: 2px 14px; }
+}
+
+/* ---------- motion guards (new motion only — existing anims are
+   already guarded by shell.css / scifi.css) ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .v3h-agents .mc-agentcard:hover::after { animation: none !important; }
+  .v3h-panel:hover, .v3h-metric:hover, .v3h-agents .mc-agentcard:hover { transform: none !important; }
+  .v3h-approve-row { transition-duration: .01s; }
+  .v3h-metrics > .fade-up, .v3h-bento > .fade-up, .v3h-bento > * > .fade-up { animation-delay: 0s !important; }
+}
+:root[data-motion="off"] .v3h-agents .mc-agentcard:hover::after { animation: none !important; }
+:root[data-motion="off"] .v3h-panel:hover,
+:root[data-motion="off"] .v3h-metric:hover,
+:root[data-motion="off"] .v3h-agents .mc-agentcard:hover { transform: none !important; }
+:root[data-motion="off"] .v3h-metrics > .fade-up,
+:root[data-motion="off"] .v3h-bento > .fade-up,
+:root[data-motion="off"] .v3h-bento > * > .fade-up { animation-delay: 0s !important; }

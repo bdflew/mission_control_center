@@ -173,32 +173,189 @@ function ReportsPage() {
 }
 
 // ===================== DAILY BRIEFING =====================
-function DailyBriefingPage({ onNav }) {
+// v3 — the operator's true morning command brief.
+// Live mode: server-composed sections (every line from a real source) with
+// one-click approve/hold, a spoken digest, and HUD readouts. Demo mode stays
+// honest: plan-of-record sample, clearly labeled, no fabricated numbers.
+const V3B_TONES = {
+  gold: { c: '#E8C766', label: 'Needs you' },
+  cyan: { c: '#23D6F5', label: 'Info' },
+  ok:   { c: '#34D399', label: 'Clear' },
+  mute: { c: '#64748B', label: 'Not connected' },
+};
+const V3B_ICONS = { approvals: 'shield-alert', agents: 'users-round', vault: 'box', gmail: 'message-square', calendar: 'list-checks' };
+const V3B_RISK = { low: '#34D399', med: '#E8C766', high: '#F4516B' };
+
+// Spoken digest — live sections when loaded, otherwise the plan-of-record summary.
+function v3bDigest(brief) {
+  if (brief && Array.isArray(brief.sections) && brief.sections.length) {
+    return 'Good morning. Your command brief. ' +
+      brief.sections.map(s => s.title + ': ' + s.lines.slice(0, 3).join('. ')).join('. ');
+  }
   const B = window.MC.dailyBriefing;
-  return React.createElement('div', { className: 'fade-up' },
-    React.createElement('div', { className: 'mc-brief__hero' },
-      React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 } },
-        React.createElement(Icon, { name: 'sun', size: 20, style: { color: 'var(--la-gold)' } }),
-        React.createElement('span', { style: { fontFamily: 'var(--font-ui)', fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--fg-3)' } }, 'Daily Briefing')),
-      React.createElement('div', { className: 'mc-brief__date' }, B.date),
-      React.createElement('p', { className: 'mc-brief__sum' }, B.summary)),
-    React.createElement('div', { className: 'mc-panel' },
-      React.createElement('div', { className: 'mc-phead' },
-        React.createElement('div', { className: 'mc-ptitle' }, React.createElement('i', null, React.createElement(Icon, { name: 'users-round', size: 15 })), 'What the team is doing today'),
-        React.createElement('span', { className: 'mc-chip good' }, React.createElement('span', { className: 'dot' }), '4 ACTIVE')),
-      ...B.rows.map(r => { const ag = agByC(r.agent);
-        return React.createElement('div', { key: r.agent, className: 'mc-brief__row' },
-          React.createElement('button', { className: 'mc-brief__who', onClick: () => onNav('agent:' + r.agent), style: { all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 11 } },
-            React.createElement('div', { className: 'mc-brief__av', style: { background: ag.avatarGrad } }, ag.name[0], React.createElement('span', { style: { position: 'absolute', right: -2, bottom: -2, width: 9, height: 9, borderRadius: '50%', border: '2px solid #161b22', background: '#2BD8A0' } })),
-            React.createElement('div', null,
-              React.createElement('div', { className: 'mc-brief__nm' }, ag.name),
-              React.createElement('div', { className: 'mc-brief__role' }, ag.role ? ag.role.split(' · ')[0] : ''))),
-          React.createElement('div', null,
-            React.createElement('div', { className: 'mc-brief__doing' }, r.doing),
-            React.createElement('div', { className: 'mc-brief__tags' },
-              ...r.did.map((d, i) => React.createElement('span', { key: i, className: 'mc-brief__did' }, React.createElement(Icon, { name: 'check', size: 11 }), d)),
-              React.createElement('span', { className: 'mc-brief__next' }, 'Next: ' + r.next)))); })),
-  );
+  return 'Good morning. ' + B.date + '. ' + B.summary;
+}
+
+function DailyBriefingPage({ onNav }) {
+  const h = React.createElement;
+  const B = window.MC.dailyBriefing;
+  const [brief, setBrief] = useSc(null);   // /api/brief payload (live only)
+  const [busy, setBusy] = useSc(false);
+  const [err, setErr] = useSc(null);
+  const [flash, setFlash] = useSc(null);   // approval row mid-exit {id, ok}
+  const [gone, setGone] = useSc({});       // approval ids resolved from this page
+  const [, setTick] = useSc(0);            // bump on mc:live so MC.* re-reads
+  const briefRef = React.useRef(null);
+
+  const fetchBrief = () => {
+    if (!(window.MCLive && window.MCLive.online)) return;
+    setBusy(true);
+    window.MCLive.get('/api/brief')
+      .then(d => { briefRef.current = d; setBrief(d); setErr(null); })
+      .catch(e => setErr(String((e && e.message) || e)))
+      .finally(() => setBusy(false));
+  };
+
+  React.useEffect(() => {
+    fetchBrief();
+    const onLive = () => {
+      setTick(t => t + 1);                                   // approvals/agents/vault patched live
+      if (window.MCLive && window.MCLive.online && !briefRef.current) fetchBrief(); // backend came up after mount
+    };
+    window.addEventListener('mc:live', onLive);
+    const off = window.MCLive && window.MCLive.onEvent
+      ? window.MCLive.onEvent(evt => { if (evt && evt.type === 'approval') fetchBrief(); })
+      : null;
+    return () => { window.removeEventListener('mc:live', onLive); off && off(); };
+  }, []);
+
+  const resolve = (id, ok) => {
+    if (!(window.MCLive && window.MCLive.online)) return;
+    setFlash({ id, ok });
+    window.MCLive.resolveApproval(id, ok ? 'approve' : 'hold').catch(() => {});
+    setTimeout(() => { setGone(g => Object.assign({}, g, { [id]: true })); setFlash(null); }, 360);
+  };
+
+  // ---- readouts: every number from real window.MC state (live.js patches it) ----
+  const live = !!(window.MCLive && window.MCLive.online);
+  const agentsAll = window.MC.agents || [];
+  const onlineN = agentsAll.filter(a => a.status && a.status !== 'offline').length;
+  const pending = (window.MC.approvals || []).filter(a => a && !gone[a.id]);
+  const notes7 = (window.MC.obsidian && window.MC.obsidian.stats && window.MC.obsidian.stats.written7d) || 0;
+  const mode = window.MC.autonomy || 'manual';
+  const tts = !!(window.MCVoice && window.MCVoice.ttsSupported);
+  const speak = () => { if (tts) window.MCVoice.speak(v3bDigest(briefRef.current), 'legacylew'); };
+
+  // ---- live brief cards (or one honest fallback card) ----
+  let briefBody;
+  if (live && brief) {
+    briefBody = h('div', { className: 'v3b-grid' },
+      ...(brief.sections || []).map(sec => {
+        const tone = V3B_TONES[sec.tone] || V3B_TONES.cyan;
+        const actionable = sec.id === 'approvals' && pending.length > 0;
+        return h('div', { key: sec.id, className: 'holo v3b-card', style: { '--acc': tone.c } },
+          h('div', { className: 'holo-sheen' }),
+          h('div', { className: 'v3b-card__head' },
+            h(Icon, { name: V3B_ICONS[sec.id] || 'circle-dot', size: 15, style: { color: tone.c } }),
+            h('div', { className: 'v3b-card__title' }, sec.title),
+            h('span', { className: 'hud-chip v3b-card__chip' }, tone.label)),
+          actionable
+            ? h('div', { className: 'v3b-apprs' }, ...pending.map(a => {
+                const f = flash && flash.id === a.id;
+                const by = a.by ? agByC(a.by).name : 'system';
+                return h('div', { key: a.id, className: 'v3b-appr', style: f ? { opacity: 0, transform: 'translateX(' + (flash.ok ? '' : '-') + '14px)' } : null },
+                  h('div', { className: 'v3b-appr__subj' }, a.subject),
+                  h('div', { className: 'v3b-appr__meta' },
+                    h('span', { style: { color: V3B_RISK[a.risk] || V3B_RISK.low } }, (a.risk || 'low') + ' risk'),
+                    ' · ' + by + (a.age ? ' · ' + a.age + ' ago' : '')),
+                  a.detail ? h('div', { className: 'v3b-appr__det' }, a.detail) : null,
+                  h('div', { className: 'v3b-appr__act' },
+                    h(Btn, { variant: 'gold', size: 'sm', icon: 'check', onClick: () => resolve(a.id, true) }, 'Approve'),
+                    h(Btn, { variant: 'quiet', size: 'sm', icon: 'pause', onClick: () => resolve(a.id, false) }, 'Hold')));
+              }))
+            : h('div', { className: 'v3b-lines' }, ...sec.lines.map((ln, i) =>
+                h('div', { key: i, className: 'v3b-line' },
+                  h(Icon, { name: 'corner-down-right', size: 12 }),
+                  h('span', null, ln)))));
+      }));
+  } else if (live && busy) {
+    briefBody = h('div', { className: 'holo v3b-card v3b-note', style: { '--acc': '#23D6F5' } },
+      h(Icon, { name: 'orbit', size: 17 }),
+      h('div', null, 'Composing your live brief from real sources…'));
+  } else if (live && err) {
+    briefBody = h('div', { className: 'holo v3b-card v3b-note', style: { '--acc': '#F4516B' } },
+      h(Icon, { name: 'shield-alert', size: 17 }),
+      h('div', null, 'Live brief fetch failed — ' + err + '. Hit Refresh to retry.'));
+  } else {
+    briefBody = h('div', { className: 'holo v3b-card v3b-note', style: { '--acc': '#64748B' } },
+      h(Icon, { name: 'plug', size: 17 }),
+      h('div', null,
+        h('div', { className: 'v3b-note__t' }, 'Backend offline — live brief unavailable.'),
+        h('div', { className: 'v3b-note__s' }, 'Showing the plan-of-record sample below. Start the backend (npm start) to compose this brief from your real approvals, agents, vault, inbox and calendar.')));
+  }
+
+  return h('div', { className: 'sci-wrap v3b-wrap' },
+    h(SciFiBackdrop, { variant: 'grid' }),
+    h('div', { className: 'sci-fg fade-up' },
+
+      // ---- 1 · sunrise hero ----
+      h('div', { className: 'holo holo--gold v3b-hero', style: { '--acc': '#E8C766' } },
+        h('div', { className: 'holo-sheen' }),
+        h('div', { className: 'v3b-sunrise', 'aria-hidden': true }),
+        h('div', { className: 'v3b-hero__main' },
+          h('div', { className: 'hud-eyebrow' }, 'DAILY BRIEFING · COMMAND COPY'),
+          h('div', { className: 'mc-brief__date glow-gold v3b-hero__date' }, B.date),
+          h('p', { className: 'mc-brief__sum v3b-hero__sum' }, B.summary)),
+        h('div', { className: 'v3b-actions' },
+          h(Btn, {
+            variant: 'gold', size: 'sm', disabled: !tts, onClick: speak,
+            title: tts ? 'Spoken digest — twin voice when available, browser voice fallback' : 'Speech synthesis is not supported in this browser',
+          }, '🔊 Read it to me'),
+          h(Btn, {
+            variant: 'ghost', size: 'sm', icon: 'folder-sync', disabled: busy || !live, onClick: fetchBrief,
+            title: live ? 'Re-fetch the live brief' : 'Backend offline — nothing live to refresh',
+          }, busy ? 'Refreshing…' : 'Refresh'))),
+
+      // ---- 3 · top readouts (all real state) ----
+      h('div', { className: 'holo v3b-readouts' },
+        h(HoloStat, { label: 'Approvals waiting', value: String(pending.length), tone: pending.length > 0 ? 'gold' : 'cyan' }),
+        h(HoloStat, { label: 'Agents online', value: String(onlineN), suffix: '/ ' + agentsAll.length, tone: 'cyan' }),
+        h(HoloStat, { label: 'Notes this week', value: String(notes7), tone: 'cyan' }),
+        h(HoloStat, { label: 'Autonomy', value: String(mode).toUpperCase(), tone: mode === 'full' ? 'emerald' : mode === 'semi' ? 'cyan' : 'gold' })),
+
+      // ---- 2 · live brief ----
+      h('div', { className: 'v3b-livehead' },
+        h('span', { className: 'hud-eyebrow' }, 'LIVE BRIEF · EVERY LINE FROM A REAL SOURCE'),
+        live && brief ? h('span', { className: 'v3b-gen' }, 'generated ' + window.MCLive.relTime(brief.generatedAt) + ' ago') : null,
+        live && brief && brief.twin && brief.twin.online ? h('span', { className: 'hud-chip' }, 'twin online') : null,
+        h('span', { className: 'v3b-livehead__sp' }),
+        live ? h(Btn, { variant: 'quiet', size: 'sm', icon: 'folder-sync', disabled: busy, onClick: fetchBrief, title: 'Re-fetch the live brief' }, busy ? 'Refreshing…' : 'Refresh') : null),
+      briefBody,
+
+      // ---- 4 · the team plan (kept, restyled, honestly titled) ----
+      h('div', { className: 'holo v3b-table' },
+        h('div', { className: 'holo-sheen' }),
+        h('div', { className: 'mc-phead' },
+          h('div', { className: 'mc-ptitle' }, h('i', null, h(Icon, { name: 'users-round', size: 15 })),
+            live ? 'What the team is doing today' : 'Plan of record · sample until agents report in'),
+          live
+            ? h('span', { className: 'mc-chip ' + (onlineN > 0 ? 'good' : 'slate') }, h('span', { className: 'dot' }), onlineN + ' ONLINE')
+            : h('span', { className: 'mc-chip slate' }, h('span', { className: 'dot' }), 'SAMPLE')),
+        ...B.rows.map(r => { const ag = agByC(r.agent);
+          const on = ag.status && ag.status !== 'offline';
+          return h('div', { key: r.agent, className: 'mc-brief__row v3b-row' },
+            h('button', { className: 'mc-brief__who', onClick: () => onNav('agent:' + r.agent), style: { all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 11 } },
+              h('div', { className: 'mc-brief__av', style: { background: ag.avatarGrad } }, ag.name[0],
+                h('span', { style: { position: 'absolute', right: -2, bottom: -2, width: 9, height: 9, borderRadius: '50%', border: '2px solid #161b22', background: on ? '#2BD8A0' : '#64748B' } })),
+              h('div', null,
+                h('div', { className: 'mc-brief__nm' }, ag.name),
+                h('div', { className: 'mc-brief__role' }, ag.role ? ag.role.split(' · ')[0] : ''))),
+            h('div', null,
+              h('div', { className: 'mc-brief__doing' }, r.doing),
+              h('div', { className: 'mc-brief__tags' },
+                ...r.did.map((d, i) => h('span', { key: i, className: 'mc-brief__did' }, h(Icon, { name: 'check', size: 11 }), d)),
+                h('span', { className: 'mc-brief__next' }, 'Next: ' + r.next)))); })),
+    ));
 }
 
 Object.assign(window, { GoalsPage, SkillsPage, WorkflowsPage, ReportsPage, DailyBriefingPage });

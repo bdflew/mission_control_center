@@ -1,0 +1,229 @@
+/* ============================================================
+   v3-war.css — layout + detail styles for the v3 WAR DECK build
+   (War Room command deck · Agent stage hero · Connector catalog).
+   Owned by views.jsx. New classes are prefixed .v3w-; a few rules
+   refine the inner layout of the ready-made scifi.css war classes.
+   Readability doctrine: text sits on solid glass panels; every
+   added animation obeys [data-motion="off"] + prefers-reduced-motion.
+   ============================================================ */
+
+/* ---------- WAR HERO ---------- */
+.v3w-hero-id { display: flex; flex-direction: column; gap: 7px; min-width: 170px; }
+.v3w-war-title {
+  font-size: clamp(24px, 3vw, 32px); line-height: 1;
+  text-shadow: 0 0 26px rgba(244, 81, 107, 0.5), 0 0 60px rgba(244, 81, 107, 0.18);
+}
+.v3w-clockbox { display: flex; flex-direction: column; gap: 3px; }
+.v3w-clock-utc { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .22em; color: var(--fg-3); }
+.v3w-defconbox { display: flex; flex-direction: column; gap: 8px; }
+.v3w-defcon-rule {
+  font-family: var(--font-mono); font-size: 8px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--fg-3); max-width: 260px; line-height: 1.55;
+}
+.v3w-hero-right {
+  margin-left: auto; display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
+}
+
+/* ---------- LIVE OPS TICKER ---------- */
+.v3w-livedot {
+  width: 6px; height: 6px; border-radius: 50%; background: #F4516B; box-shadow: 0 0 9px #F4516B;
+  animation: v3wPulse calc(1.6s / max(var(--motion-scale, 1), 0.0001)) ease-in-out infinite;
+}
+@keyframes v3wPulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+.v3w-tick-dot { width: 6px; height: 6px; border-radius: 2px; display: inline-block; flex-shrink: 0; background: #64748B; transform: rotate(45deg); }
+.v3w-tick-dot.chat  { background: #6FE8FB; box-shadow: 0 0 6px rgba(35, 214, 245, 0.65); }
+.v3w-tick-dot.agent { background: #34D399; box-shadow: 0 0 6px rgba(52, 211, 153, 0.65); }
+.v3w-tick-dot.good  { background: #34D399; box-shadow: 0 0 6px rgba(52, 211, 153, 0.65); }
+.v3w-tick-dot.warn  { background: #E8C766; box-shadow: 0 0 6px rgba(232, 199, 102, 0.65); }
+.v3w-tick-dot.crit  { background: #F4516B; box-shadow: 0 0 6px rgba(244, 81, 107, 0.7); }
+.v3w-tick-dot.vault { background: #A78BFA; box-shadow: 0 0 6px rgba(167, 139, 250, 0.65); }
+.v3w-tick-dot.mode  { background: #6FE8FB; box-shadow: 0 0 6px rgba(35, 214, 245, 0.65); }
+.v3w-tick-dot.idle  { background: #64748B; }
+
+/* ---------- COMMS PANEL (live chat) ---------- */
+.v3w-comms {
+  display: flex; flex-direction: column; min-width: 0; overflow: hidden;
+  height: min(680px, calc(100vh - 330px)); min-height: 460px;
+}
+.v3w-comms__head { display: flex; align-items: center; gap: 12px; padding: 14px 18px 11px; }
+.v3w-comms__t {
+  flex: 1; display: inline-flex; align-items: center; gap: 9px;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: .26em; text-transform: uppercase;
+  color: #FF8095;
+}
+.v3w-comms__t svg { flex-shrink: 0; }
+.v3w-comms__rail { margin: 0 18px; --acc: #F4516B; }
+.v3w-comms .mc-war__feed { flex: 1; min-height: 0; }
+.v3w-comms .mc-war__composer { background: rgba(8, 12, 22, 0.72); }
+.v3w-empty {
+  font-family: var(--font-body); font-size: 12px; color: var(--fg-3);
+  padding: 14px 4px; line-height: 1.55;
+}
+
+/* ---------- SIDE STACK PANELS ---------- */
+.v3w-panel { padding: 15px 16px 16px; min-width: 0; }
+.v3w-panel__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 13px; }
+.v3w-panel__t {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: .24em; text-transform: uppercase;
+  color: var(--acc2, #6FE8FB);
+}
+.v3w-panel__t--gold { color: #F3D27A; }
+.v3w-panel__t svg { flex-shrink: 0; opacity: .85; }
+.v3w-pct { font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: #5BEFC3; text-shadow: 0 0 12px rgba(52, 211, 153, 0.5); }
+.v3w-rule {
+  font-family: var(--font-mono); font-size: 8.5px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--fg-3); line-height: 1.6; margin-top: 11px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.08); padding-top: 9px;
+}
+
+/* radar */
+.v3w-radar-row { display: flex; align-items: center; gap: 16px; }
+.v3w-legend { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.v3w-legend span {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: var(--fg-3);
+  white-space: nowrap;
+}
+.v3w-legend i { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+/* mission objectives */
+.v3w-mission-name { font-family: var(--font-display); font-size: 14.5px; font-weight: 700; letter-spacing: .03em; color: var(--fg-1); }
+.v3w-mission-phase { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--fg-3); margin-top: 3px; }
+.v3w-bar { height: 6px; border-radius: 4px; background: rgba(255, 255, 255, 0.07); overflow: hidden; margin: 10px 0 4px; }
+.v3w-bar i {
+  display: block; height: 100%; border-radius: 4px;
+  background: linear-gradient(90deg, var(--acc, #23D6F5), #5BEFC3);
+  box-shadow: 0 0 12px rgba(35, 214, 245, 0.45);
+  transition: width .6s cubic-bezier(.22, 1, .36, 1);
+}
+.v3w-objectives { margin-top: 2px; }
+.v3w-obj-t { font-family: var(--font-ui); font-size: 12.5px; color: var(--fg-2); line-height: 1.45; min-width: 0; }
+.war-objective.done .v3w-obj-t { color: var(--fg-3); text-decoration: line-through; text-decoration-color: rgba(52, 211, 153, 0.5); }
+.war-objective.active .v3w-obj-t { color: var(--fg-1); }
+.war-objective .st { font-family: var(--font-mono); font-size: 9px; line-height: 1; }
+.v3w-next {
+  display: flex; align-items: flex-start; gap: 7px; margin-top: 10px;
+  font-family: var(--font-body); font-size: 11.5px; color: #F3D27A; line-height: 1.5;
+}
+.v3w-next svg { flex-shrink: 0; margin-top: 2px; opacity: .8; }
+
+/* approval board */
+.v3w-appr { padding: 10px 0; border-bottom: 1px dashed rgba(232, 199, 102, 0.16); }
+.v3w-appr:last-of-type { border-bottom: none; }
+.v3w-appr__top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.v3w-appr__subj { font-family: var(--font-ui); font-size: 12.5px; font-weight: 600; color: var(--fg-1); line-height: 1.4; min-width: 0; }
+.v3w-appr__meta { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .08em; color: var(--fg-3); margin-top: 4px; text-transform: uppercase; }
+.v3w-appr__act { display: flex; gap: 8px; margin-top: 9px; }
+
+/* presence */
+.v3w-pchip {
+  font-family: var(--font-mono); font-size: 8.5px; letter-spacing: .08em; text-transform: uppercase;
+  padding: 3px 7px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.1); color: var(--fg-3);
+  white-space: nowrap; max-width: 116px; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0;
+}
+.v3w-pchip.on { color: #5BEFC3; border-color: rgba(52, 211, 153, 0.4); background: rgba(52, 211, 153, 0.07); }
+.v3w-tag {
+  font-family: var(--font-mono); font-size: 8.5px; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--acc2, #6FE8FB); border: 1px dashed rgba(35, 214, 245, 0.35);
+  padding: 2px 6px; border-radius: 5px; white-space: nowrap; flex-shrink: 0;
+}
+.v3w-panel .mc-war__pres .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.v3w-panel .mc-av .live.online { background: #2BD8A0; box-shadow: 0 0 8px #2BD8A0; }
+.v3w-panel .mc-av .live.offline { background: #64748B; }
+
+/* ---------- AGENT STAGE (premium per-agent hero) ---------- */
+.v3w-stage {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 26px 300px 24px 28px;
+}
+.v3w-stage__top { display: flex; align-items: center; gap: 20px; }
+.v3w-stage__id { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.v3w-stage__name {
+  font-size: clamp(26px, 4vw, 34px); line-height: 1;
+  text-shadow: 0 0 26px color-mix(in srgb, var(--ag-acc, #23D6F5) 55%, transparent),
+               0 0 64px color-mix(in srgb, var(--ag-acc, #23D6F5) 22%, transparent);
+}
+.v3w-stage__meta { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.v3w-stage__av {
+  border-radius: 24px !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ag-acc, #23D6F5) 45%, transparent),
+              0 0 34px -4px color-mix(in srgb, var(--ag-acc, #23D6F5) 60%, transparent),
+              0 14px 30px -12px rgba(0, 0, 0, 0.7);
+}
+.v3w-stage__av .live.online { background: #2BD8A0; box-shadow: 0 0 8px #2BD8A0; }
+.v3w-stage__av .live.offline { background: #64748B; }
+.v3w-stage__blurb {
+  margin: 0; max-width: 640px;
+  font-family: var(--font-body); font-size: 13.5px; line-height: 1.65; color: var(--fg-2);
+}
+.v3w-stage__stats { display: flex; align-items: flex-end; gap: 30px; flex-wrap: wrap; margin-top: 2px; }
+.v3w-reported {
+  align-self: center; font-family: var(--font-mono); font-size: 8.5px; letter-spacing: .18em; text-transform: uppercase;
+  color: #5BEFC3; border: 1px solid rgba(52, 211, 153, 0.4); background: rgba(52, 211, 153, 0.07);
+  padding: 3px 8px; border-radius: 6px;
+}
+@media (max-width: 900px) {
+  .v3w-stage { padding-right: 28px; }
+  .agent-stage__char { opacity: .18; }
+  .agent-stage__ring { opacity: .25; }
+}
+
+/* ---------- CONNECTORS ---------- */
+.v3w-plug { padding: 16px 18px; margin-bottom: var(--gap-grid, 16px); }
+.v3w-plug__row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px dashed rgba(232, 199, 102, 0.14); min-width: 0; }
+.v3w-plug__row:last-child { border-bottom: none; padding-bottom: 2px; }
+.v3w-plug__tag {
+  flex-shrink: 0; width: 46px; text-align: center;
+  font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: .16em;
+  color: #F3D27A; border: 1px solid rgba(232, 199, 102, 0.4); background: rgba(232, 199, 102, 0.08);
+  padding: 4px 0; border-radius: 6px;
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+}
+.v3w-plug__line {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--font-mono); font-size: 11px; color: var(--fg-1);
+}
+.v3w-copy {
+  all: unset; cursor: pointer; flex-shrink: 0;
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--fg-2); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 7px;
+  padding: 5px 10px; transition: all .16s;
+}
+.v3w-copy:hover { color: #F3D27A; border-color: rgba(232, 199, 102, 0.5); background: rgba(232, 199, 102, 0.07); }
+.v3w-copy:focus-visible { outline: 2px solid var(--acc, #23D6F5); outline-offset: 1px; }
+.v3w-copy.is-copied {
+  color: #5BEFC3; border-color: rgba(52, 211, 153, 0.55); background: rgba(52, 211, 153, 0.1);
+  box-shadow: 0 0 14px -4px rgba(52, 211, 153, 0.6);
+}
+
+.v3w-cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: var(--gap-grid, 16px); }
+.v3w-cat { padding: 14px 15px; min-width: 0; }
+.v3w-cat__top { display: flex; align-items: flex-start; gap: 11px; margin-bottom: 12px; }
+.v3w-cat .mc-conn__note {
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: normal;
+}
+.v3w-cat .conn-method svg { opacity: .75; }
+.v3w-minfo {
+  font-family: var(--font-mono); font-size: 10px; color: var(--acc2, #6FE8FB);
+  margin-top: 8px; line-height: 1.5; opacity: .85;
+}
+
+/* placeholder polish */
+.v3w-ph { padding: 40px 48px; border-radius: 18px; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 1100px) {
+  .v3w-hero-right { margin-left: 0; }
+  .v3w-comms { height: 560px; min-height: 0; }
+}
+
+/* ---------- motion guards (new animations only) ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .v3w-livedot { animation: none !important; }
+  .v3w-bar i { transition: none !important; }
+}
+:root[data-motion="off"] .v3w-livedot { animation: none !important; }
+:root[data-motion="off"] .v3w-bar i { transition: none !important; }

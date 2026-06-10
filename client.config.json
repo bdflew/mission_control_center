@@ -24,11 +24,11 @@
     { "id": "kratos", "sprite": "assets/char-kratos.png", "model3d": null, "deskSlot": 1, "voice": { "rate": 0.95, "pitch": 0.82 } },
     { "id": "faye",   "sprite": "assets/char-faye.png",   "model3d": null, "deskSlot": 2, "voice": { "rate": 1.06, "pitch": 1.15 } },
     { "id": "chloe",  "sprite": null,                      "model3d": null, "deskSlot": 3, "voice": { "rate": 1.0,  "pitch": 1.2 } },
-    { "id": "lew",    "sprite": "assets/char-lew.png",    "model3d": null, "deskSlot": 4, "voice": { "rate": 1.0,  "pitch": 0.92 } }
+    { "id": "legacylew", "sprite": "assets/char-lew.png", "model3d": null, "deskSlot": 4, "voice": { "rate": 1.0,  "pitch": 0.92 } }
   ],
   "twin": {
     "enabled": true,
-    "agentId": "lew",
+    "agentId": "legacylew",
     "displayName": "Legacy Lew",
     "persona": "prompts/twin.md",
     "model": "claude-sonnet-4-6",

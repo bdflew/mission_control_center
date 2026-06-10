@@ -1,0 +1,201 @@
+/* ============================================================
+   v3-myth-dream.css — HERMES (Greek mythology) + DREAMING (dreamworld)
+   Loads after scifi.css, so single-class overrides here win the cascade.
+   New classes are prefixed .v3m- (myth / Hermes) and .v3d- (dream).
+   All animation respects [data-motion="off"] and prefers-reduced-motion;
+   durations scale with --motion-scale like the rest of the v3 layer.
+   ============================================================ */
+
+/* ============ HERMES · MESSENGER OF THE GODS ============ */
+
+/* --- hero: the temple lintel --- */
+.myth-hero.v3m-hero { text-align: center; padding: 38px 28px 30px; margin-bottom: var(--gap-grid); }
+.v3m-title { font-size: clamp(40px, 5.6vw, 58px); line-height: 1.04; margin: 8px 0 0; }
+.myth-divider.v3m-wingline { max-width: 440px; margin: 12px auto 14px; }
+.v3m-hero-meta { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
+.v3m-host { font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; color: var(--fg-2); }
+.v3m-tagline {
+  margin-top: 13px; font-family: 'Cinzel', serif; font-size: 11.5px;
+  letter-spacing: .22em; text-transform: uppercase;
+  color: rgba(232, 199, 102, 0.52); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.65);
+}
+
+/* --- panels & Cinzel panel titles --- */
+.v3m-panel { padding: 18px 22px 20px; margin-bottom: var(--gap-grid); }
+.v3m-ptitle {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  font-family: 'Cinzel', var(--font-display), serif; font-size: 13px; font-weight: 700;
+  letter-spacing: .3em; text-transform: uppercase; color: #F6E3AC;
+  text-shadow: 0 0 16px rgba(232, 199, 102, 0.3); margin-bottom: 14px;
+}
+.v3m-ptitle--left { justify-content: flex-start; font-size: 10.5px; letter-spacing: .24em; margin-bottom: 10px; }
+.mc-ptitle.v3m-cinzel { font-family: 'Cinzel', var(--font-display), serif; letter-spacing: .14em; color: #F6E3AC; }
+
+/* --- gold HoloStat tally row --- */
+.v3m-stats { display: flex; flex-wrap: wrap; justify-content: space-around; gap: 16px 28px; }
+
+/* --- conversations rail (scrolls) --- */
+.v3m-rail .mc-hconvo:hover { background: rgba(232, 199, 102, 0.06); }
+.v3m-rail .mc-hconvo.active { background: rgba(232, 199, 102, 0.10); box-shadow: inset 2px 0 0 #E8C766; }
+.v3m-rail .mc-hconvo__time { color: rgba(232, 199, 102, 0.55); }
+
+/* --- Oracle Line chat: gold-trim bubbles + composer --- */
+.v3m-chat .mc-bubble.them {
+  background: linear-gradient(180deg, rgba(44, 36, 16, 0.66), rgba(24, 20, 10, 0.80));
+  border: 1px solid rgba(232, 199, 102, 0.30);
+  box-shadow: 0 0 18px -8px rgba(232, 199, 102, 0.35), inset 0 1px 0 rgba(246, 227, 172, 0.08);
+}
+.v3m-chat .mc-bubble.me {
+  background: rgba(232, 199, 102, 0.10);
+  border: 1px solid rgba(232, 199, 102, 0.42);
+}
+.v3m-chat .mc-bubble__meta { color: rgba(232, 199, 102, 0.62); letter-spacing: .12em; }
+.v3m-chat .mc-composer { border-color: rgba(232, 199, 102, 0.26); background: rgba(20, 16, 8, 0.8); }
+.v3m-chat .mc-composer:focus-within { border-color: rgba(232, 199, 102, 0.55); box-shadow: 0 0 16px -4px rgba(232, 199, 102, 0.35); }
+.v3m-chat .mc-composer__send { background: linear-gradient(180deg, #F3D27A, #D8A74A 55%, #A87B2E); }
+.v3m-chat .mc-typing span { background: #E8C766; }
+
+/* --- twin columns: Divine Channels + Pantheon of Models --- */
+.v3m-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap-grid); }
+.v3m-conns .mc-conn-mini { background: rgba(26, 22, 12, 0.55); border-color: rgba(232, 199, 102, 0.14); }
+.v3m-conns .mc-conn-mini__ico { background: rgba(232, 199, 102, 0.12); color: #E8C766; }
+.v3m-models .mc-modelbar__track { background: rgba(232, 199, 102, 0.12); }
+.v3m-models .mc-modelbar__fill {
+  background: linear-gradient(90deg, #A87B2E, #E8C766 60%, #F6E3AC);
+  box-shadow: 0 0 12px rgba(232, 199, 102, 0.45);
+}
+
+/* --- Decree of the House: gold proclamation plaque --- */
+.v3m-decree {
+  padding: 22px 24px;
+  background:
+    radial-gradient(120% 160% at 50% -30%, rgba(232, 199, 102, 0.16), transparent 60%),
+    linear-gradient(180deg, rgba(36, 28, 12, 0.92), rgba(16, 13, 8, 0.96));
+  box-shadow:
+    inset 0 0 0 1px rgba(232, 199, 102, 0.14),
+    inset 0 0 0 5px rgba(16, 13, 8, 0.9),
+    inset 0 0 0 6px rgba(232, 199, 102, 0.22),
+    0 18px 44px -20px rgba(0, 0, 0, 0.8);
+}
+.v3m-decree__head { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.v3m-decree__h {
+  font-family: 'Cinzel', serif; font-size: 16px; font-weight: 800; letter-spacing: .22em;
+  text-transform: uppercase; color: #F6E3AC; text-shadow: 0 0 18px rgba(232, 199, 102, 0.4);
+}
+.v3m-decree__sub {
+  text-align: center; font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .3em;
+  text-transform: uppercase; color: rgba(232, 199, 102, 0.6); margin: 4px 0 12px;
+}
+.v3m-decree__text {
+  font-family: var(--font-body); font-size: 13.5px; color: var(--fg-1); line-height: 1.55;
+  margin: 0 auto 14px; max-width: 640px; text-align: center;
+}
+.v3m-decree > div:last-child { justify-content: center; }
+
+/* ============ DREAMING · LIVING DREAMWORLD ============ */
+
+/* --- hero: CSS moon + glow title --- */
+.dream-hero.v3d-hero { display: flex; align-items: center; gap: 22px; margin-bottom: var(--gap-grid); }
+.v3d-title {
+  font-family: var(--font-display); font-size: clamp(26px, 3.4vw, 34px); font-weight: 800;
+  letter-spacing: .08em; text-transform: uppercase; color: #EDE7FF; margin: 7px 0 0;
+}
+.v3d-desc { font-family: var(--font-body); font-size: 13px; color: var(--fg-2); margin: 8px 0 0; max-width: 560px; line-height: 1.55; }
+.v3d-lastrun { text-align: right; flex-shrink: 0; }
+.v3d-lastrun .l { font-family: var(--font-mono); font-size: 10px; letter-spacing: .2em; color: var(--fg-3); }
+.v3d-lastrun .v { font-family: var(--font-mono); font-size: 12px; color: #C4B5FD; margin-top: 3px; }
+
+.v3d-moon {
+  width: 74px; height: 74px; border-radius: 50%; flex-shrink: 0; position: relative;
+  background: radial-gradient(circle at 32% 28%, #EDE7FF 0%, #C4B5FD 38%, #8B72E0 68%, #5B4AA8 100%);
+  box-shadow:
+    0 0 44px -4px rgba(167, 139, 250, 0.65),
+    0 0 90px -10px rgba(167, 139, 250, 0.4),
+    inset -10px -12px 26px rgba(20, 10, 60, 0.55);
+  animation: v3dMoonFloat calc(7s / max(var(--motion-scale, 1), 0.0001)) ease-in-out infinite;
+}
+.v3d-moon::before { /* craters */
+  content: ''; position: absolute; inset: 0; border-radius: 50%;
+  background:
+    radial-gradient(circle at 62% 38%, rgba(70, 50, 140, 0.5) 0 9%, transparent 11%),
+    radial-gradient(circle at 40% 64%, rgba(70, 50, 140, 0.42) 0 7%, transparent 9%),
+    radial-gradient(circle at 72% 68%, rgba(70, 50, 140, 0.36) 0 5%, transparent 7%),
+    radial-gradient(circle at 27% 42%, rgba(255, 255, 255, 0.25) 0 4%, transparent 6%);
+}
+.v3d-moon::after { /* breathing halo ring */
+  content: ''; position: absolute; inset: -12px; border-radius: 50%;
+  border: 1px solid rgba(196, 181, 253, 0.28);
+  animation: v3dHalo calc(5s / max(var(--motion-scale, 1), 0.0001)) ease-in-out infinite;
+}
+@keyframes v3dMoonFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes v3dHalo { 0%, 100% { opacity: .35; transform: scale(1); } 50% { opacity: .85; transform: scale(1.06); } }
+
+/* --- sources + stats strip --- */
+.v3d-sources { display: flex; gap: 8px; margin-bottom: var(--gap-grid); flex-wrap: wrap; align-items: center; }
+.v3d-stats { display: flex; flex-wrap: wrap; justify-content: space-around; gap: 14px 26px; padding: 16px 20px; margin-bottom: var(--gap-grid); }
+
+/* --- dream cycle (SCHEDULE) + tonight's focus --- */
+.v3d-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap-grid); margin-bottom: 24px; align-items: start; }
+.v3d-cycle, .v3d-focus { padding: 16px 18px; }
+.v3d-phase-hrs { font-family: var(--font-mono); font-size: 9px; letter-spacing: .08em; color: var(--fg-3); width: 42px; flex-shrink: 0; }
+.dream-phase.v3d-phase-now { color: var(--fg-1); }
+.dream-phase.v3d-phase-now .ph { color: #EDE7FF; text-shadow: 0 0 12px rgba(167, 139, 250, 0.8); }
+.v3d-now-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+  background: #C4B5FD; box-shadow: 0 0 10px #A78BFA;
+  animation: v3dPulse calc(2.2s / max(var(--motion-scale, 1), 0.0001)) ease-in-out infinite;
+}
+@keyframes v3dPulse { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+.v3d-cycle-foot { margin-top: 10px; font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .06em; color: var(--fg-3); line-height: 1.5; }
+
+.v3d-ta {
+  width: 100%; box-sizing: border-box; resize: vertical; min-height: 64px;
+  border-radius: 11px; padding: 10px 12px; outline: none;
+  font-family: var(--font-body); font-size: 13px; color: var(--fg-1);
+  background: rgba(13, 11, 28, 0.75); border: 1px solid rgba(167, 139, 250, 0.25);
+  transition: border-color .16s, box-shadow .16s;
+}
+.v3d-ta:focus { border-color: rgba(167, 139, 250, 0.55); box-shadow: 0 0 18px -6px rgba(167, 139, 250, 0.5); }
+.v3d-ta::placeholder { color: var(--fg-3); }
+.v3d-seeds { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+.v3d-seed {
+  all: unset; cursor: pointer; font-family: var(--font-mono); font-size: 9.5px;
+  letter-spacing: .1em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px;
+  color: #C4B5FD; border: 1px dashed rgba(167, 139, 250, 0.4); transition: background .15s, border-color .15s;
+}
+.v3d-seed:hover { background: rgba(167, 139, 250, 0.12); border-style: solid; }
+.v3d-seed:focus-visible { outline: 2px solid #A78BFA; outline-offset: 1px; }
+.v3d-note { margin-top: 10px; font-family: var(--font-ui); font-size: 11.5px; line-height: 1.45; padding: 8px 11px; border-radius: 9px; }
+.v3d-note.ok { color: #6EE7B7; background: rgba(52, 211, 153, 0.08); border: 1px solid rgba(52, 211, 153, 0.3); }
+.v3d-note.local { color: #ecca78; background: rgba(216, 167, 74, 0.08); border: 1px solid rgba(216, 167, 74, 0.3); }
+.v3d-note.err { color: #ff8095; background: rgba(244, 81, 107, 0.08); border: 1px solid rgba(244, 81, 107, 0.3); }
+.v3d-queue { margin-top: 12px; border-top: 1px dashed rgba(167, 139, 250, 0.2); padding-top: 10px; }
+.v3d-queue__t { font-family: var(--font-mono); font-size: 9px; letter-spacing: .26em; color: var(--fg-3); margin-bottom: 7px; }
+.v3d-queue__row { display: flex; gap: 9px; align-items: flex-start; font-family: var(--font-body); font-size: 12.5px; color: var(--fg-1); padding: 4px 0; line-height: 1.4; }
+.v3d-queue__star { width: 6px; height: 6px; border-radius: 50%; background: #C4B5FD; box-shadow: 0 0 8px rgba(167, 139, 250, 0.8); margin-top: 5px; flex-shrink: 0; }
+
+/* --- violet-trim ghost buttons inside the dreamworld --- */
+.dream-wrap .mc-btn--ghost { color: #C4B5FD; border-color: rgba(167, 139, 250, 0.4); background: rgba(167, 139, 250, 0.07); }
+.dream-wrap .mc-btn--ghost:hover { background: rgba(167, 139, 250, 0.14); border-color: #A78BFA; box-shadow: 0 0 14px -2px rgba(167, 139, 250, 0.4); }
+
+/* --- insight + findings cards on dream glass --- */
+.v3d-insight { margin-bottom: 12px; }
+.v3d-insight:hover { border-color: rgba(167, 139, 250, 0.5); }
+.v3d-find .mc-dreamfind__star { background: #C4B5FD; box-shadow: 0 0 8px #A78BFA; }
+
+/* ============ responsive ============ */
+@media (max-width: 980px) {
+  .v3m-grid2, .v3d-grid2 { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
+  .dream-hero.v3d-hero { flex-direction: column; align-items: flex-start; }
+  .v3d-lastrun { text-align: left; }
+}
+
+/* ============ motion guards ============ */
+@media (prefers-reduced-motion: reduce) {
+  .v3d-moon, .v3d-moon::after, .v3d-now-dot { animation: none !important; }
+}
+:root[data-motion="off"] .v3d-moon,
+:root[data-motion="off"] .v3d-moon::after,
+:root[data-motion="off"] .v3d-now-dot { animation: none !important; }

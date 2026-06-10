@@ -1,0 +1,174 @@
+/* ============================================================
+   v3-brief.css — Daily Briefing page only (DailyBriefingPage).
+   All classes prefixed .v3b-. Loads after scifi.css, so .holo
+   composition + per-card --acc tone tinting work as designed.
+   Every animation respects [data-motion="off"] and
+   prefers-reduced-motion.
+   ============================================================ */
+
+/* ---------- 1 · sunrise hero ---------- */
+.v3b-hero {
+  position: relative; overflow: hidden;
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 18px; flex-wrap: wrap;
+  padding: 22px 26px 26px;
+  margin-bottom: var(--gap-grid, 16px);
+}
+/* gold horizon hairline along the hero's bottom edge */
+.v3b-hero::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1px;
+  background: linear-gradient(90deg, transparent 4%, rgba(232,199,102,0.35) 45%, rgba(243,210,122,0.85) 76%, transparent 98%);
+  pointer-events: none;
+}
+.v3b-hero__main { position: relative; z-index: 1; min-width: 240px; flex: 1; }
+.v3b-hero__date {
+  font-family: var(--font-display); font-size: 26px; font-weight: 800;
+  letter-spacing: .02em; color: var(--fg-1); margin: 10px 0 2px;
+}
+.v3b-hero__sum { max-width: 560px; }
+
+/* the rising sun: glowing disc + concentric arc rings, cropped by the horizon */
+.v3b-sunrise {
+  position: absolute; right: -20px; bottom: 0; width: 400px; height: 200px;
+  overflow: hidden; pointer-events: none; opacity: .95;
+}
+.v3b-sunrise::before {                       /* sun disc */
+  content: ''; position: absolute; left: 58%; bottom: -120px;
+  width: 240px; height: 240px; border-radius: 50%;
+  transform: translateX(-50%);
+  background: radial-gradient(circle,
+    rgba(243,210,122,0.55) 0%,
+    rgba(232,199,102,0.22) 46%,
+    rgba(232,199,102,0.06) 62%,
+    transparent 74%);
+  animation: v3bRise 2.4s var(--ease-out, ease-out) both;
+}
+.v3b-sunrise::after {                        /* arc rings above the horizon */
+  content: ''; position: absolute; left: 58%; bottom: -210px;
+  width: 460px; height: 460px; border-radius: 50%;
+  transform: translateX(-50%);
+  background: repeating-radial-gradient(circle,
+    transparent 0 41px,
+    rgba(232,199,102,0.16) 41px 42px);
+  -webkit-mask-image: linear-gradient(to top, transparent 46%, #000 72%);
+          mask-image: linear-gradient(to top, transparent 46%, #000 72%);
+}
+@keyframes v3bRise {
+  from { transform: translateX(-50%) translateY(70px); opacity: 0; }
+  to   { transform: translateX(-50%) translateY(0);    opacity: 1; }
+}
+
+/* hero actions */
+.v3b-actions {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 9px;
+}
+.v3b-actions .mc-btn:disabled,
+.v3b-livehead .mc-btn:disabled { opacity: .45; cursor: not-allowed; pointer-events: auto; }
+.v3b-actions .mc-btn:disabled:hover,
+.v3b-livehead .mc-btn:disabled:hover { transform: none; filter: none; box-shadow: none; }
+
+/* ---------- 3 · top readouts ---------- */
+.v3b-readouts {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 14px 0;
+  padding: 16px 22px;
+  margin-bottom: var(--gap-grid, 16px);
+}
+.v3b-readouts > div {
+  padding: 0 26px 0 0; margin-right: 26px;
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+}
+.v3b-readouts > div:last-child { border-right: none; margin-right: 0; padding-right: 0; }
+
+/* ---------- 2 · live brief ---------- */
+.v3b-livehead {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin: 6px 2px 12px;
+}
+.v3b-livehead__sp { flex: 1; }
+.v3b-gen {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em;
+  color: var(--fg-3); font-variant-numeric: tabular-nums;
+}
+
+.v3b-grid {
+  display: grid; gap: var(--gap-grid, 14px);
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  margin-bottom: var(--gap-grid, 16px);
+}
+
+/* a tone-tinted holo card — --acc set inline per section tone */
+.v3b-card { padding: 15px 18px 16px; }
+.v3b-card__head { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; }
+.v3b-card__head svg { flex: none; }
+.v3b-card__title {
+  flex: 1; min-width: 0;
+  font-family: var(--font-display); font-size: 12.5px; font-weight: 800;
+  letter-spacing: .09em; text-transform: uppercase;
+  color: var(--acc, #23D6F5);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.v3b-card__chip { flex: none; font-size: 9px; padding: 3px 9px; }
+
+/* server-composed lines */
+.v3b-lines { margin-top: 2px; }
+.v3b-line {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 6px 0; border-top: 1px solid rgba(255, 255, 255, 0.05);
+  font-family: var(--font-body); font-size: 12.5px; line-height: 1.5;
+  color: var(--fg-2); overflow-wrap: anywhere;
+}
+.v3b-line:first-child { border-top: none; }
+.v3b-line svg { flex: none; margin-top: 3px; color: var(--acc, #23D6F5); opacity: .75; }
+
+/* actionable approval rows inside the approvals card */
+.v3b-apprs { margin-top: 2px; }
+.v3b-appr {
+  padding: 10px 0 12px; border-top: 1px solid rgba(255, 255, 255, 0.06);
+  transition: opacity .3s ease, transform .3s ease;
+}
+.v3b-appr:first-child { border-top: none; }
+.v3b-appr__subj {
+  font-family: var(--font-ui); font-size: 13px; font-weight: 600;
+  color: var(--fg-1); line-height: 1.4; margin-bottom: 3px;
+}
+.v3b-appr__meta {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: .05em;
+  color: var(--fg-3); margin-bottom: 8px;
+}
+.v3b-appr__det {
+  font-family: var(--font-body); font-size: 12px; line-height: 1.5;
+  color: var(--fg-2); margin: -2px 0 9px;
+}
+.v3b-appr__act { display: flex; gap: 8px; }
+
+/* honest single-card states: offline / loading / fetch error */
+.v3b-note {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 17px 19px; margin-bottom: var(--gap-grid, 16px);
+  font-family: var(--font-body); font-size: 13px; line-height: 1.55; color: var(--fg-2);
+}
+.v3b-note svg { flex: none; margin-top: 1px; color: var(--acc, #64748B); }
+.v3b-note__t { font-family: var(--font-ui); font-weight: 600; color: var(--fg-1); margin-bottom: 3px; }
+.v3b-note__s { color: var(--fg-2); }
+
+/* ---------- 4 · team plan table (kept, on holo) ---------- */
+.v3b-table { padding: var(--pad-card, 18px); }
+.v3b-table .mc-brief__row:first-of-type { border-top: none; }
+
+/* ---------- readability / responsive ---------- */
+@media (max-width: 860px) {
+  .v3b-sunrise { opacity: .45; right: -110px; }
+  .v3b-actions { flex-direction: row; align-items: center; }
+}
+@media (max-width: 560px) {
+  .v3b-readouts > div { border-right: none; margin-right: 18px; padding-right: 0; }
+}
+
+/* ---------- motion safety ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .v3b-sunrise::before { animation: none; }
+  .v3b-appr { transition: none; }
+}
+:root[data-motion="off"] .v3b-sunrise::before { animation: none; }
+:root[data-motion="off"] .v3b-appr { transition: none; }

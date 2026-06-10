@@ -214,6 +214,7 @@
       }));
     }
     MC.connections = b.connections || [];
+    if (b.mode) MC.autonomy = b.mode; // autonomy ladder: manual | semi | full
     const liveConn = id => { const c = MC.connections.find(x => x.id === id); return c && c.live; };
     if (liveConn('gmail')) refreshGmail();
     if (liveConn('calendar')) refreshCalendar();
@@ -239,17 +240,32 @@
     companionButton();
   }
 
-  // ---- companion pop-out (Phase 4): a small always-on-top Lew window ----
+  // ---- companion dock (v3): animated avatar FAB → 3D voice widget window ----
   function companionButton() {
     if (!(window.MC && MC.features && MC.features.companion)) return;
-    if (document.getElementById('mc-companion-btn')) return;
-    const b = document.createElement('button');
-    b.id = 'mc-companion-btn';
-    b.title = 'Pop out ' + ((window.MC.twin && MC.twin.displayName) || 'the companion');
-    b.textContent = '⧉ ' + ((window.MC.twin && MC.twin.displayName) || 'Companion');
-    b.style.cssText = 'position:fixed;right:14px;bottom:44px;z-index:120;font-family:var(--font-mono,monospace);font-size:10.5px;letter-spacing:.04em;padding:6px 11px;border-radius:999px;cursor:pointer;background:rgba(13,20,36,0.85);border:1px solid rgba(35,214,245,0.35);color:#9ddcEA;backdrop-filter:blur(8px);';
-    b.onclick = () => window.open('companion.html', 'mcCompanion', 'width=380,height=620,resizable=yes');
-    document.body.appendChild(b);
+    let dock = document.getElementById('mc-companion-dock');
+    if (!dock) {
+      dock = document.createElement('div');
+      dock.id = 'mc-companion-dock';
+      dock.className = 'companion-dock';
+      const fab = document.createElement('button');
+      fab.className = 'companion-fab';
+      fab.title = 'Open ' + ((window.MC.twin && MC.twin.displayName) || 'the companion') + ' — voice + chat';
+      fab.setAttribute('aria-label', 'Open companion widget');
+      fab.innerHTML = '<span class="pulse"></span><img src="assets/avatar-headshot.png" alt=""/><span class="badge" style="display:none">0</span>';
+      fab.onclick = () => window.open('companion.html', 'mcCompanion', 'width=420,height=680,resizable=yes');
+      dock.appendChild(fab);
+      document.body.appendChild(dock);
+      // badge = live pending-approval count (real signal, not decoration)
+      const sync = () => {
+        const n = (window.MC.approvals || []).length;
+        const el = fab.querySelector('.badge');
+        if (el) { el.textContent = String(n); el.style.display = n > 0 ? 'grid' : 'none'; }
+      };
+      window.addEventListener('mc:live', sync);
+      MCLive.onEvent(e => { if (e.type === 'approval') setTimeout(sync, 50); });
+      sync();
+    }
   }
 
   // ---- boot ----

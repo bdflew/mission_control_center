@@ -175,6 +175,11 @@ function StudioPage({ onAction }) {
 }
 
 // ===================== HERMES PAGE =====================
+// "MESSENGER OF THE GODS" — premium Greek-mythology theme (v3).
+// Every section of the previous page survives, re-dressed: identity bar → temple
+// hero, the four stats → gold HoloStat tally, conversations rail + local mock
+// chat (honest 'Local' chip) → Oracle Line, connections/models → Divine Channels
+// + Pantheon of Models, Mission Control goal → Decree of the House. Logic intact.
 function HermesPage({ onNav }) {
   const H = window.MC.hermes;
   const [convo, setConvo] = useSb('h1');
@@ -185,149 +190,311 @@ function HermesPage({ onNav }) {
   useEb(() => { if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight; }, [msgs, typing]);
   const send = () => {
     if (!val.trim()) return;
-    setMsgs(p => [...p, { me: true, t: val }]); const q = val; setVal(''); setTyping(true);
+    setMsgs(p => [...p, { me: true, t: val }]); setVal(''); setTyping(true);
     setTimeout(() => { setTyping(false); setMsgs(p => [...p, { me: false, t: 'On it. I have full context from the vault — routing this through the team and logging it back. I will surface the result in your next brief.' }]); }, 1300);
   };
-  return React.createElement('div', { className: 'fade-up' },
-    React.createElement('div', { className: 'mc-integ__bar', style: { marginBottom: 16 } },
-      React.createElement('div', { className: 'mc-integ__id' },
-        React.createElement('div', { className: 'mc-integ__logo', style: { background: 'linear-gradient(145deg,#A87B2E,#F3D27A)' } }, React.createElement(Icon, { name: 'send', size: 22, style: { color: '#06121A' } })),
-        React.createElement('div', null,
-          React.createElement('div', { className: 'mc-integ__name' }, 'Hermes'),
-          React.createElement('div', { className: 'mc-integ__acct' }, H.version + ' · ' + H.host))),
-      React.createElement('span', { className: 'mc-chip good' }, React.createElement('span', { className: 'dot' }), 'Online')),
-    React.createElement('div', { className: 'mc-hermes' },
-      React.createElement('div', { className: 'mc-hermes__convos' },
-        React.createElement('div', { className: 'mc-ptitle', style: { marginBottom: 12, fontSize: 11 } }, React.createElement('i', null, React.createElement(Icon, { name: 'message-square', size: 14 })), 'Conversations'),
-        ...H.conversations.map(c => React.createElement('button', { key: c.id, className: 'mc-hconvo' + (convo === c.id ? ' active' : ''), onClick: () => setConvo(c.id) },
-          React.createElement('span', { className: 'mc-hconvo__t' }, c.title),
-          React.createElement('span', { className: 'mc-hconvo__time' }, c.time)))),
-      React.createElement('div', { className: 'mc-hermes__main' },
-        // stats
-        React.createElement('div', { className: 'mc-hermes__statgrid' },
-          React.createElement('div', { className: 'mc-obs__stat' }, React.createElement('div', { className: 'v' }, H.activations), React.createElement('div', { className: 'l' }, 'Activations · 7d')),
-          React.createElement('div', { className: 'mc-obs__stat' }, React.createElement('div', { className: 'v' }, H.connections.filter(c => c.status === 'live').length), React.createElement('div', { className: 'l' }, 'Live Connections')),
-          React.createElement('div', { className: 'mc-obs__stat' }, React.createElement('div', { className: 'v' }, '4'), React.createElement('div', { className: 'l' }, 'Models')),
-          React.createElement('div', { className: 'mc-obs__stat' }, React.createElement('div', { className: 'v' }, '1.2K'), React.createElement('div', { className: 'l' }, 'Memory Hits'))),
-        // chat
-        React.createElement('div', { className: 'mc-tpanel mc-agent theme-gold', style: { padding: 16 } },
-          React.createElement('div', { className: 'mc-phead' },
-            React.createElement('div', { className: 'mc-ptitle' }, React.createElement('i', { style: { color: 'var(--la-gold)' } }, React.createElement(Icon, { name: 'send', size: 15 })), 'Chat with Hermes'),
-            React.createElement('span', { className: 'mc-chip gold' }, React.createElement('span', { className: 'dot' }), 'Local')),
-          React.createElement('div', { className: 'mc-achat', style: { height: 300 } },
-            React.createElement('div', { className: 'mc-achat__feed', ref: feedRef },
-              ...msgs.map((m, i) => React.createElement('div', { key: i, className: 'mc-bubble ' + (m.me ? 'me' : 'them') },
-                React.createElement('div', { className: 'mc-bubble__meta' }, m.me ? 'You' : 'Hermes'), m.t)),
-              typing && React.createElement('div', { className: 'mc-bubble them' }, React.createElement('div', { className: 'mc-typing' }, React.createElement('span'), React.createElement('span'), React.createElement('span')))),
-            React.createElement('div', { className: 'mc-composer' },
-              React.createElement('input', { value: val, onChange: e => setVal(e.target.value), onKeyDown: e => e.key === 'Enter' && send(), placeholder: 'Ask Hermes anything…', 'aria-label': 'Message Hermes' }),
-              React.createElement('button', { className: 'mc-composer__send', onClick: send, 'aria-label': 'Send' }, React.createElement(Icon, { name: 'send', size: 15 }))))),
-        // connections + models
-        React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--gap-grid)' } },
-          React.createElement('div', { className: 'mc-panel' },
-            React.createElement('div', { className: 'mc-phead' }, React.createElement('div', { className: 'mc-ptitle' }, React.createElement('i', null, React.createElement(Icon, { name: 'plug', size: 15 })), 'Connections')),
-            React.createElement('div', { className: 'mc-conngrid' },
-              ...H.connections.map(c => React.createElement('div', { key: c.name, className: 'mc-conn-mini' },
-                React.createElement('div', { className: 'mc-conn-mini__ico' }, React.createElement(Icon, { name: c.glyph, size: 14 })),
-                React.createElement('div', { style: { flex: 1, minWidth: 0 } },
-                  React.createElement('div', { className: 'mc-conn-mini__n' }, c.name),
-                  React.createElement('div', { className: 'mc-conn-mini__m' }, c.method)),
-                React.createElement('span', { className: 'pulse-dot ' + (c.status === 'live' ? 'good' : 'slate'), style: { width: 7, height: 7 } }))))),
-          React.createElement('div', { className: 'mc-panel' },
-            React.createElement('div', { className: 'mc-phead' }, React.createElement('div', { className: 'mc-ptitle' }, React.createElement('i', null, React.createElement(Icon, { name: 'cpu', size: 15 })), 'Model Routing')),
-            ...H.models.map(m => React.createElement('div', { key: m.name, className: 'mc-modelbar' },
-              React.createElement('div', { className: 'mc-modelbar__top' }, React.createElement('span', { style: { color: 'var(--fg-1)' } }, m.name), React.createElement('span', { style: { color: 'var(--fg-3)' } }, m.share + '%')),
-              React.createElement('div', { className: 'mc-modelbar__track' }, React.createElement('div', { className: 'mc-modelbar__fill', style: { width: m.share + '%' } })),
-              React.createElement('div', { style: { fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--fg-3)', marginTop: 3 } }, m.use))))),
-        // mission control goal
-        React.createElement('div', { className: 'mc-hgoal' },
-          React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 } },
-            React.createElement(Icon, { name: 'target', size: 16, style: { color: 'var(--la-gold)' } }),
-            React.createElement('span', { style: { fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase' } }, 'Mission Control Goal')),
-          React.createElement('div', { style: { fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--fg-1)', lineHeight: 1.5, marginBottom: 10 } }, 'Grow the YouTube channel by 1,000 subscribers. Hermes drafts the plan, assigns the team, and you keep the approval gate.'),
-          React.createElement('div', { style: { display: 'flex', gap: 8 } },
-            React.createElement(Btn, { variant: 'gold', size: 'sm', icon: 'arrow-right', onClick: () => onNav('ws:kanban') }, 'Open the plan'),
-            React.createElement(Btn, { variant: 'quiet', size: 'sm', icon: 'plus' }, 'Set new goal')))),
-    ),
+  const liveConns = H.connections.filter(c => c.status === 'live').length;
+  const memHits = (H.memoryHits || '1.2K').split(' ')[0];
+  return (
+    <div className="sci-wrap myth-wrap">
+      <SciFiBackdrop variant="myth" />
+      <div className="sci-fg fade-up">
+
+        {/* 1 · HERO — the temple lintel */}
+        <div className="myth-hero v3m-hero">
+          <div className="myth-sub">⚚ MESSENGER OF THE GODS ⚚</div>
+          <h1 className="myth-title v3m-title">HERMES</h1>
+          <div className="myth-divider v3m-wingline">
+            <span className="myth-wing"><Icon name="send" size={26} /></span>
+          </div>
+          <div className="v3m-hero-meta">
+            <span className="v3m-host">{H.version + ' · ' + H.host}</span>
+            <span className="mc-chip good"><span className="dot" />Online</span>
+          </div>
+          <div className="v3m-tagline">Carries every word of the house · keeper of memory</div>
+        </div>
+
+        {/* 2 · STATS — the gold tally */}
+        <div className="myth-panel v3m-panel">
+          <div className="v3m-ptitle"><span className="myth-laurel">❧</span><span>Tally of the Messenger</span><span className="myth-laurel">❧</span></div>
+          <div className="v3m-stats">
+            <HoloStat label="Activations · 7d" value={H.activations} tone="gold" size={30} />
+            <HoloStat label="Live Connections" value={liveConns} tone="gold" size={30} />
+            <HoloStat label="Models" value={H.models.length} tone="gold" size={30} />
+            <HoloStat label="Memory Hits" value={memHits} suffix="notes" tone="gold" size={30} />
+          </div>
+        </div>
+
+        {/* 3 · CONVERSATIONS rail + ORACLE LINE chat (behavior unchanged) */}
+        <div className="mc-hermes">
+          <div className="mc-hermes__convos myth-panel v3m-rail">
+            <div className="v3m-ptitle v3m-ptitle--left"><span className="myth-laurel">❧</span><span>Conversations</span></div>
+            {H.conversations.map(c => (
+              <button key={c.id} className={'mc-hconvo' + (convo === c.id ? ' active' : '')} onClick={() => setConvo(c.id)}>
+                <span className="mc-hconvo__t">{c.title}</span>
+                <span className="mc-hconvo__time">{c.time}</span>
+              </button>
+            ))}
+          </div>
+          <div className="mc-hermes__main">
+            <div className="myth-panel mc-agent theme-gold v3m-chat" style={{ padding: 16 }}>
+              <div className="mc-phead">
+                <div className="mc-ptitle v3m-cinzel"><i style={{ color: 'var(--la-gold)' }}><Icon name="send" size={15} /></i>Oracle Line · ask Hermes</div>
+                <span className="mc-chip gold"><span className="dot" />Local</span>
+              </div>
+              <div className="mc-achat" style={{ height: 300 }}>
+                <div className="mc-achat__feed" ref={feedRef}>
+                  {msgs.map((m, i) => (
+                    <div key={i} className={'mc-bubble ' + (m.me ? 'me' : 'them')}>
+                      <div className="mc-bubble__meta">{m.me ? 'You' : 'Hermes'}</div>{m.t}
+                    </div>
+                  ))}
+                  {typing && <div className="mc-bubble them"><div className="mc-typing"><span /><span /><span /></div></div>}
+                </div>
+                <div className="mc-composer">
+                  <input value={val} onChange={e => setVal(e.target.value)} onKeyDown={e => e.key === 'Enter' && send()} placeholder="Ask Hermes anything…" aria-label="Message Hermes" />
+                  <button className="mc-composer__send" onClick={send} aria-label="Send"><Icon name="send" size={15} /></button>
+                </div>
+              </div>
+            </div>
+
+            {/* 4 · DIVINE CHANNELS + PANTHEON OF MODELS (data/logic unchanged) */}
+            <div className="v3m-grid2">
+              <div className="mc-panel myth-panel v3m-conns">
+                <div className="mc-phead"><div className="mc-ptitle v3m-cinzel"><i style={{ color: 'var(--la-gold)' }}><Icon name="plug" size={15} /></i>Divine Channels</div></div>
+                <div className="mc-conngrid">
+                  {H.connections.map(c => (
+                    <div key={c.name} className="mc-conn-mini">
+                      <div className="mc-conn-mini__ico"><Icon name={c.glyph} size={14} /></div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="mc-conn-mini__n">{c.name}</div>
+                        <div className="mc-conn-mini__m">{c.method}</div>
+                      </div>
+                      <span className={'pulse-dot ' + (c.status === 'live' ? 'good' : 'slate')} style={{ width: 7, height: 7 }} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="mc-panel myth-panel v3m-models">
+                <div className="mc-phead"><div className="mc-ptitle v3m-cinzel"><i style={{ color: 'var(--la-gold)' }}><Icon name="cpu" size={15} /></i>Pantheon of Models</div></div>
+                {H.models.map(m => (
+                  <div key={m.name} className="mc-modelbar">
+                    <div className="mc-modelbar__top"><span style={{ color: 'var(--fg-1)' }}>{m.name}</span><span style={{ color: 'var(--fg-3)' }}>{m.share + '%'}</span></div>
+                    <div className="mc-modelbar__track"><div className="mc-modelbar__fill" style={{ width: m.share + '%' }} /></div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--fg-3)', marginTop: 3 }}>{m.use}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 5 · DECREE OF THE HOUSE — the Mission Control goal, as a plaque */}
+            <div className="myth-panel v3m-decree">
+              <div className="v3m-decree__head">
+                <Icon name="target" size={17} style={{ color: 'var(--la-gold)' }} />
+                <span className="v3m-decree__h">Decree of the House</span>
+              </div>
+              <div className="v3m-decree__sub">Mission Control Goal</div>
+              <div className="v3m-decree__text">Grow the YouTube channel by 1,000 subscribers. Hermes drafts the plan, assigns the team, and you keep the approval gate.</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <Btn variant="gold" size="sm" icon="arrow-right" onClick={() => onNav('ws:kanban')}>Open the plan</Btn>
+                <Btn variant="quiet" size="sm" icon="plus">Set new goal</Btn>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
 // ===================== DREAMING PAGE =====================
-function DreamGalaxyBg() {
-  const ref = useRb(null);
-  useEb(() => {
-    const cv = ref.current; if (!cv) return;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const S = { t: 0, raf: 0, stars: [] };
-    const init = () => { const w = cv.clientWidth, h = cv.clientHeight; cv.width = w * dpr; cv.height = h * dpr; S.stars = []; for (let i = 0; i < 90; i++) S.stars.push({ x: Math.random() * w, y: Math.random() * h, r: Math.random() * 1.4 + 0.2, tw: Math.random() * 6.28, c: Math.random() > 0.7 ? '#6FE8FB' : '#cfeaff' }); };
-    init();
-    const paint = () => {
-      const w = cv.clientWidth, h = cv.clientHeight; const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, w, h);
-      ctx.globalCompositeOperation = 'screen';
-      const bx = w * 0.85, by = h * 0.2;
-      const ng = ctx.createRadialGradient(bx, by, 0, bx, by, 220);
-      ng.addColorStop(0, 'rgba(35,214,245,0.14)'); ng.addColorStop(1, 'rgba(35,214,245,0)');
-      ctx.fillStyle = ng; ctx.beginPath(); ctx.arc(bx, by, 220, 0, 6.2832); ctx.fill();
-      ctx.globalCompositeOperation = 'source-over';
-      S.stars.forEach(st => { const tw = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(S.t * 1.4 + st.tw)); ctx.globalAlpha = tw; ctx.fillStyle = st.c; ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, 6.2832); ctx.fill(); });
-      ctx.globalAlpha = 1;
-    };
-    const loop = () => { S.t += 0.016; paint(); S.raf = requestAnimationFrame(loop); };
-    paint(); S.raf = requestAnimationFrame(loop);
-    window.addEventListener('resize', init);
-    return () => { cancelAnimationFrame(S.raf); window.removeEventListener('resize', init); };
-  }, []);
-  return React.createElement('canvas', { ref, className: 'mc-dreamgalaxy' });
-}
+// A living dreamworld. The old DreamGalaxyBg canvas is gone — the page-wide
+// SciFiBackdrop variant="dream" (aurora ribbons + drifting stars) replaces it.
+// Everything from the previous page survives: hero (CSS moon + LAST RUN),
+// sources row, every System Insight (Act on it / Dismiss), per-agent findings
+// grid. New: HoloStat row, Dream Cycle SCHEDULE widget (honest — not live
+// telemetry), and a "Tonight's focus" composer that queues to the vault when
+// the backend is live, or saves to localStorage with an honest label when not.
+
+const V3D_PHASES = [
+  { ph: 'COLLECT', hrs: '00–02', from: 0, to: 2, d: 'Gather fresh notes, chats and logs from every connected source' },
+  { ph: 'CROSS-READ', hrs: '02–04', from: 2, to: 4, d: 'Read across Hermes, Claude, Codex, Gemini and the vault' },
+  { ph: 'PATTERN-MATCH', hrs: '04–05', from: 4, to: 5, d: 'Surface repeats, drifts, risks and savings hiding between tools' },
+  { ph: 'COMPOSE BRIEF', hrs: '05–06', from: 5, to: 6, d: 'Write the morning brief and queue suggested moves for approval' },
+];
+const V3D_SEEDS = ['lead recovery', 'content angles', 'cost savings'];
 
 function DreamingPage({ onNav }) {
   const D = window.MC.dreamingPage;
   const [items, setItems] = useSb(D.insights);
   const findings = window.MC.dreamFindings || {};
-  return React.createElement('div', { className: 'fade-up' },
-    React.createElement('div', { className: 'mc-dreampage__hero cosmic' },
-      React.createElement(DreamGalaxyBg),
-      React.createElement('div', { className: 'mc-dreampage__moon' }),
-      React.createElement('div', { style: { flex: 1 } },
-        React.createElement('div', { style: { fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 800, letterSpacing: '.03em', textTransform: 'uppercase' } }, 'Dreaming'),
-        React.createElement('p', { style: { fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--fg-2)', margin: '6px 0 0', maxWidth: 560 } }, 'While you sleep, the system reads across Hermes, Claude, Codex, Gemini and your vault — surfacing patterns, savings, and the next move. A morning brief, every day.')),
-      React.createElement('div', { style: { textAlign: 'right' } },
-        React.createElement('div', { style: { fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--fg-3)' } }, 'LAST RUN'),
-        React.createElement('div', { style: { fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--la-cyan)' } }, D.lastRun))),
-    React.createElement('div', { style: { display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' } },
-      React.createElement('span', { className: 'mono', style: { fontSize: 10, color: 'var(--fg-3)' } }, 'READS FROM'),
-      ...D.sources.map(s => React.createElement('span', { key: s, className: 'mc-chip cyan', style: { fontSize: 9 } }, s)),
-      React.createElement('span', { style: { marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--fg-3)' } }, 'Next run: ' + D.nextRun)),
-    React.createElement('div', { className: 'mc-section__title', style: { fontSize: 12, marginBottom: 12 } }, React.createElement('i', null, React.createElement(Icon, { name: 'sparkles', size: 15 })), 'System Insights'),
-    ...items.map(d => React.createElement('div', { key: d.id, className: 'mc-dreaminsight' },
-      React.createElement('div', { className: 'mc-dreaminsight__ico tone-' + d.tone }, React.createElement(Icon, { name: d.glyph, size: 18 })),
-      React.createElement('div', { className: 'mc-dreaminsight__b' },
-        React.createElement('div', { className: 'mc-dreaminsight__t' }, d.title),
-        React.createElement('div', { className: 'mc-dreaminsight__x' }, d.text),
-        React.createElement('div', { style: { display: 'flex', gap: 8, alignItems: 'center' } },
-          React.createElement('span', { className: 'mc-dreaminsight__from' }, '◆ ' + d.from),
-          React.createElement(Btn, { variant: 'ghost', size: 'sm', onClick: () => { onNav && onNav('home'); } }, 'Act on it'),
-          React.createElement(Btn, { variant: 'quiet', size: 'sm', onClick: () => setItems(p => p.filter(x => x.id !== d.id)) }, 'Dismiss'))),
-      React.createElement('div', { className: 'mc-dreaminsight__save', style: { color: d.tone === 'gold' ? 'var(--la-gold)' : d.tone === 'crimson' ? '#F4516B' : d.tone === 'emerald' ? '#34D399' : 'var(--la-cyan)' } }, d.save))),
-    items.length === 0 && React.createElement('div', { className: 'mc-placeholder', style: { minHeight: 160 } },
-      React.createElement('div', null, React.createElement('div', { className: 'mc-placeholder__ico' }, React.createElement(Icon, { name: 'check-circle', size: 30 })), React.createElement('h3', null, 'Brief cleared'), React.createElement('p', null, 'You acted on every overnight insight. The system keeps dreaming tonight.'))),
-    React.createElement('div', { className: 'mc-section__title', style: { fontSize: 12, margin: '24px 0 12px' } }, React.createElement('i', null, React.createElement(Icon, { name: 'cpu', size: 15 })), 'What each employee found overnight'),
-    React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 'var(--gap-grid)' } },
-      ...window.MC.agents.map(a => { const fs = findings[a.id] || [];
-        return React.createElement('div', { key: a.id, className: 'mc-dreamfind' },
-          React.createElement('div', { className: 'mc-dreamfind__top' },
-            React.createElement('button', { onClick: () => onNav('agent:' + a.id), style: { all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 11 } },
-              React.createElement('div', { className: 'mc-dreamfind__av', style: { background: a.avatarGrad } }, a.name[0]),
-              React.createElement('div', null,
-                React.createElement('div', { style: { fontFamily: 'var(--font-ui)', fontSize: 13.5, fontWeight: 600 } }, a.name),
-                React.createElement('div', { style: { fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--fg-3)' } }, fs.length + ' findings'))),
-            React.createElement('span', { className: 'mc-chip ' + a.theme, style: { marginLeft: 'auto' } }, React.createElement('span', { className: 'dot' }), 'Dreamt')),
-          ...fs.map((f, i) => React.createElement('button', { key: i, className: 'mc-dreamfind__row', onClick: () => onNav('agent:' + a.id), style: { all: 'unset', cursor: 'pointer', display: 'flex', gap: 10, alignItems: 'flex-start', width: '100%', boxSizing: 'border-box' } },
-            React.createElement('span', { className: 'mc-dreamfind__star' }),
-            React.createElement('div', null,
-              React.createElement('div', { className: 'mc-dreamfind__found' }, f.t),
-              React.createElement('div', { className: 'mc-dreamfind__act' }, React.createElement(Icon, { name: 'corner-down-right', size: 11 }), f.a))))); })),
+  const findingsTotal = Object.values(findings).reduce((n, fs) => n + (fs ? fs.length : 0), 0);
+  // ---- tonight's-focus composer state ----
+  const [focus, setFocus] = useSb('');
+  const [queued, setQueued] = useSb(() => { try { return JSON.parse(localStorage.getItem('mcDreamQueue')) || []; } catch (e) { return []; } });
+  const [note, setNote] = useSb(null);
+  const [busy, setBusy] = useSb(false);
+  const [isLive, setIsLive] = useSb(() => !!(window.MCLive && MCLive.online));
+  useEb(() => {
+    const sync = () => setIsLive(!!(window.MCLive && MCLive.online));
+    window.addEventListener('mc:live', sync);
+    return () => window.removeEventListener('mc:live', sync);
+  }, []);
+  const hour = new Date().getHours();
+  const phaseNow = V3D_PHASES.findIndex(p => hour >= p.from && hour < p.to); // -1 → daytime, idle until tonight
+  const queueFocus = () => {
+    const text = focus.trim(); if (!text || busy) return;
+    const entry = { t: text, at: new Date().toISOString() };
+    if (window.MCLive && MCLive.online) {
+      setBusy(true);
+      MCLive.post('/api/vault/note', { path: 'Dream_Requests/' + new Date().toISOString().slice(0, 10) + '.md', content: '- ' + text + '\n', mode: 'append', by: 'lew' })
+        .then(() => { setQueued(p => [...p, entry]); setFocus(''); setNote({ tone: 'ok', msg: 'Queued to the vault — the system dreams on it tonight.' }); })
+        .catch(() => { setNote({ tone: 'err', msg: 'Vault write failed — nothing was queued. Try again.' }); })
+        .finally(() => setBusy(false));
+    } else {
+      const next = [...queued, entry];
+      try { localStorage.setItem('mcDreamQueue', JSON.stringify(next)); } catch (e) {}
+      setQueued(next); setFocus('');
+      setNote({ tone: 'local', msg: 'Saved locally — will queue when the backend is online.' });
+    }
+  };
+  return (
+    <div className="sci-wrap dream-wrap">
+      <SciFiBackdrop variant="dream" />
+      <div className="sci-fg fade-up">
+
+        {/* 1 · HERO — moon, title, LAST RUN (backdrop is page-wide now) */}
+        <div className="dream-hero v3d-hero">
+          <div className="v3d-moon" aria-hidden="true" />
+          <div style={{ flex: 1 }}>
+            <div className="hud-eyebrow">Overnight Intelligence</div>
+            <h1 className="v3d-title dream-glow-text">DREAMING</h1>
+            <p className="v3d-desc">While you sleep, the system reads across Hermes, Claude, Codex, Gemini and your vault — surfacing patterns, savings, and the next move. A morning brief, every day.</p>
+          </div>
+          <div className="v3d-lastrun">
+            <div className="l">LAST RUN</div>
+            <div className="v">{D.lastRun}</div>
+          </div>
+        </div>
+
+        {/* 2 · SOURCES row + next run (kept) */}
+        <div className="v3d-sources">
+          <span className="mono" style={{ fontSize: 10, color: 'var(--fg-3)' }}>READS FROM</span>
+          {D.sources.map(s => <span key={s} className="mc-chip violet" style={{ fontSize: 9 }}>{s}</span>)}
+          <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--fg-3)' }}>{'Next run: ' + D.nextRun}</span>
+        </div>
+
+        {/* 3 · HoloStat row (new) */}
+        <div className="dream-card v3d-stats">
+          <HoloStat label="Insights surfaced" value={items.length} size={28} />
+          <HoloStat label="Sources read" value={D.sources.length} size={28} />
+          <HoloStat label="Findings" value={findingsTotal} size={28} />
+        </div>
+
+        {/* 4 · Dream Cycle (SCHEDULE — honest) + Tonight's focus (new) */}
+        <div className="v3d-grid2">
+          <div className="dream-card v3d-cycle">
+            <div className="mc-phead">
+              <div className="mc-ptitle"><i><Icon name="moon-star" size={15} /></i>Dream Cycle</div>
+              <span className="mc-chip violet" title="Nightly schedule — not live telemetry"><span className="dot" />Schedule</span>
+            </div>
+            {V3D_PHASES.map((p, i) => (
+              <div key={p.ph} className={'dream-phase' + (phaseNow === i ? ' v3d-phase-now' : '')}>
+                <span className="ph">{p.ph}</span>
+                <span className="v3d-phase-hrs">{p.hrs}</span>
+                <span style={{ flex: 1 }}>{p.d}</span>
+                {phaseNow === i && <span className="v3d-now-dot" title="Local time is inside this scheduled window" />}
+              </div>
+            ))}
+            <div className="v3d-cycle-foot">
+              {phaseNow >= 0
+                ? 'Local time sits in the ' + V3D_PHASES[phaseNow].ph + ' window — marked from the schedule, not live telemetry.'
+                : 'Daytime — idle until tonight. Next run: ' + D.nextRun}
+            </div>
+          </div>
+
+          <div className="dream-card v3d-focus">
+            <div className="mc-phead">
+              <div className="mc-ptitle"><i><Icon name="pen-line" size={15} /></i>Tonight's Focus</div>
+              {isLive
+                ? <span className="mc-chip good"><span className="dot" />Vault live</span>
+                : <span className="mc-chip slate"><span className="dot" />Offline · saves locally</span>}
+            </div>
+            <textarea className="v3d-ta" rows={3} value={focus} onChange={e => setFocus(e.target.value)} placeholder="Tell the system what to dream on tonight — a question, a worry, a hunch…" aria-label="Tonight's focus" />
+            <div className="v3d-seeds">
+              {V3D_SEEDS.map(s => <button key={s} className="v3d-seed" onClick={() => setFocus(f => f.trim() ? f.trim() + ' · ' + s : s)}>{s}</button>)}
+              <span style={{ marginLeft: 'auto' }} />
+              <Btn variant="ghost" size="sm" icon="moon-star" onClick={queueFocus}>{busy ? 'Queuing…' : 'Queue for tonight'}</Btn>
+            </div>
+            {note && <div className={'v3d-note ' + note.tone}>{note.msg}</div>}
+            {queued.length > 0 && (
+              <div className="v3d-queue">
+                <div className="v3d-queue__t">{'QUEUED TONIGHT · ' + queued.length}</div>
+                {queued.map((q, i) => <div key={i} className="v3d-queue__row"><span className="v3d-queue__star" />{q.t}</div>)}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 5 · SYSTEM INSIGHTS (kept — Act on it / Dismiss / tones) */}
+        <div className="mc-section__title" style={{ fontSize: 12, marginBottom: 12 }}><i><Icon name="sparkles" size={15} /></i>System Insights</div>
+        {items.map((d, i) => (
+          <div key={d.id} className={'mc-dreaminsight dream-card v3d-insight dream-float' + (i % 3 === 1 ? ' d2' : i % 3 === 2 ? ' d3' : '')}>
+            <div className={'mc-dreaminsight__ico tone-' + d.tone}><Icon name={d.glyph} size={18} /></div>
+            <div className="mc-dreaminsight__b">
+              <div className="mc-dreaminsight__t">{d.title}</div>
+              <div className="mc-dreaminsight__x">{d.text}</div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span className="mc-dreaminsight__from">{'◆ ' + d.from}</span>
+                <Btn variant="ghost" size="sm" onClick={() => { onNav && onNav('home'); }}>Act on it</Btn>
+                <Btn variant="quiet" size="sm" onClick={() => setItems(p => p.filter(x => x.id !== d.id))}>Dismiss</Btn>
+              </div>
+            </div>
+            <div className="mc-dreaminsight__save" style={{ color: d.tone === 'gold' ? 'var(--la-gold)' : d.tone === 'crimson' ? '#F4516B' : d.tone === 'emerald' ? '#34D399' : 'var(--la-cyan)' }}>{d.save}</div>
+          </div>
+        ))}
+        {items.length === 0 && (
+          <div className="mc-placeholder" style={{ minHeight: 160 }}>
+            <div>
+              <div className="mc-placeholder__ico"><Icon name="check-circle" size={30} /></div>
+              <h3>Brief cleared</h3>
+              <p>You acted on every overnight insight. The system keeps dreaming tonight.</p>
+            </div>
+          </div>
+        )}
+
+        {/* 6 · PER-AGENT FINDINGS (kept — nav-to-agent clicks intact) */}
+        <div className="mc-section__title" style={{ fontSize: 12, margin: '24px 0 12px' }}><i><Icon name="cpu" size={15} /></i>What each employee found overnight</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 'var(--gap-grid)' }}>
+          {window.MC.agents.map(a => {
+            const fs = findings[a.id] || [];
+            return (
+              <div key={a.id} className="mc-dreamfind dream-card v3d-find">
+                <div className="mc-dreamfind__top">
+                  <button onClick={() => onNav('agent:' + a.id)} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 11 }}>
+                    <div className="mc-dreamfind__av" style={{ background: a.avatarGrad }}>{a.name[0]}</div>
+                    <div>
+                      <div style={{ fontFamily: 'var(--font-ui)', fontSize: 13.5, fontWeight: 600 }}>{a.name}</div>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--fg-3)' }}>{fs.length + ' findings'}</div>
+                    </div>
+                  </button>
+                  <span className={'mc-chip ' + a.theme} style={{ marginLeft: 'auto' }}><span className="dot" />Dreamt</span>
+                </div>
+                {fs.map((f, i) => (
+                  <button key={i} className="mc-dreamfind__row" onClick={() => onNav('agent:' + a.id)} style={{ all: 'unset', cursor: 'pointer', display: 'flex', gap: 10, alignItems: 'flex-start', width: '100%', boxSizing: 'border-box' }}>
+                    <span className="mc-dreamfind__star" />
+                    <div>
+                      <div className="mc-dreamfind__found">{f.t}</div>
+                      <div className="mc-dreamfind__act"><Icon name="corner-down-right" size={11} />{f.a}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
   );
 }
 
