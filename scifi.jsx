@@ -52,6 +52,7 @@
         const w = cv.clientWidth || cv.parentElement.clientWidth, h = cv.clientHeight || cv.parentElement.clientHeight;
         if (!w || !h) return;
         S.w = w; S.h = h; cv.width = w * dpr; cv.height = h * dpr;
+        S.auroraCv = null; // re-render the cached aurora strip at the new size
         S.stars = [];
         for (let i = 0; i < V.stars; i++) S.stars.push({
           x: Math.random(), y: Math.random(), r: Math.random() * 1.3 + 0.25,
@@ -81,20 +82,31 @@
           ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
         });
 
-        // aurora ribbons (dream)
+        // aurora ribbons (dream) — bands are pre-blurred ONCE into an offscreen
+        // canvas (per-frame ctx.filter blur was a CPU rasterize every frame);
+        // per-frame work is just two transforms of the cached strip
         if (V.aurora) {
-          ctx.save(); ctx.globalCompositeOperation = 'screen';
-          for (let band = 0; band < 3; band++) {
-            ctx.beginPath();
-            const baseY = h * (0.22 + band * 0.16);
-            for (let x = 0; x <= w; x += 14) {
-              const y = baseY + Math.sin(x * 0.006 + t * (0.5 + band * 0.18) * ms) * 26 + Math.sin(x * 0.0017 + t * 0.3) * 40;
-              x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-            }
+          if (!S.auroraCv || S.auroraCv.width !== Math.ceil(w)) {
+            S.auroraCv = document.createElement('canvas');
+            S.auroraCv.width = Math.max(2, Math.ceil(w)); S.auroraCv.height = Math.max(2, Math.ceil(h * 0.7));
+            const ax = S.auroraCv.getContext('2d');
             const cols = ['rgba(167,139,250,', 'rgba(35,214,245,', 'rgba(244,114,182,'];
-            ctx.strokeStyle = cols[band] + '0.16)'; ctx.lineWidth = 30; ctx.filter = 'blur(14px)'; ctx.stroke(); ctx.filter = 'none';
+            for (let band = 0; band < 3; band++) {
+              ax.beginPath();
+              const baseY = S.auroraCv.height * (0.25 + band * 0.22);
+              for (let x = 0; x <= w; x += 14) {
+                const y = baseY + Math.sin(x * 0.006 + band * 2.1) * 26 + Math.sin(x * 0.0017) * 40;
+                x === 0 ? ax.moveTo(x, y) : ax.lineTo(x, y);
+              }
+              ax.strokeStyle = cols[band] + '0.16)'; ax.lineWidth = 30; ax.filter = 'blur(14px)'; ax.stroke(); ax.filter = 'none';
+            }
           }
-          ctx.restore();
+          ctx.save(); ctx.globalCompositeOperation = 'screen';
+          const drift = Math.sin(t * 0.22 * Math.max(ms, 0.0001)) * 24;
+          const sway = Math.cos(t * 0.13 * Math.max(ms, 0.0001)) * 14;
+          ctx.globalAlpha = 0.9; ctx.drawImage(S.auroraCv, drift, h * 0.08 + sway * 0.4);
+          ctx.globalAlpha = 0.55; ctx.drawImage(S.auroraCv, -drift * 1.4, h * 0.18 - sway);
+          ctx.globalAlpha = 1; ctx.restore();
         }
 
         // god rays (myth)
@@ -162,12 +174,22 @@
       };
 
       let last = performance.now();
+      let stoppedForMotion = false;
       const loop = (now) => {
         if (!running) return;
         const dt = Math.min(3, (now - last) / 16.7); last = now;
         t += 0.016 * dt * Math.max(motionScale(), 0.0001);
         paint(dt);
-        if (motionScale() === 0) return; // static frame painted; stop looping
+        if (motionScale() === 0) {
+          // static frame painted; park the loop but keep checking the tweak so
+          // motion off→on resumes without a remount (audit P3)
+          stoppedForMotion = true;
+          const probe = setInterval(() => {
+            if (!running) return clearInterval(probe);
+            if (motionScale() > 0) { clearInterval(probe); stoppedForMotion = false; last = performance.now(); raf = requestAnimationFrame(loop); }
+          }, 1500);
+          return;
+        }
         raf = requestAnimationFrame(loop);
       };
       const onVis = () => {

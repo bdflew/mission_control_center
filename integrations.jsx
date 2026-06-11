@@ -1,7 +1,7 @@
 // integrations.jsx — Gmail, Google Calendar, Google Drive, Notion
 const { useState: useSi, useMemo: useMi } = React;
 
-function IntegHeader({ logo, grad, name, acct, status }) {
+function IntegHeader({ logo, grad, name, acct, status, onNav }) {
   return React.createElement('div', { className: 'mc-integ__bar' },
     React.createElement('div', { className: 'mc-integ__id' },
       React.createElement('div', { className: 'mc-integ__logo', style: { background: grad } }, React.createElement(Icon, { name: logo, size: 22, style: { color: '#fff' } })),
@@ -10,12 +10,14 @@ function IntegHeader({ logo, grad, name, acct, status }) {
         React.createElement('div', { className: 'mc-integ__acct' }, acct))),
     React.createElement('div', { style: { display: 'flex', gap: 9, alignItems: 'center' } },
       React.createElement('span', { className: 'mc-chip ' + (String(status || 'Connected').indexOf('Connected') === 0 ? 'good' : 'slate') }, React.createElement('span', { className: 'dot' }), status || 'Connected'),
-      React.createElement(Btn, { variant: 'ghost', size: 'sm', icon: 'cog' }, 'Manage')),
+      React.createElement(Btn, { variant: 'ghost', size: 'sm', icon: 'cog', onClick: () => { if (onNav) onNav('connectors'); else location.hash = 'connectors'; }, title: 'Connection settings live in Connectors' }, 'Manage')),
   );
 }
 
 // ===================== GMAIL =====================
 function GmailPage({ onAction }) {
+  // restore framework edits saved in a previous session
+  try { const saved = JSON.parse(localStorage.getItem('mc_email_frameworks')); if (Array.isArray(saved) && saved.length) window.MC.emailFrameworks = saved; } catch (e) {}
   const G = window.MC.gmail;
   const live = G.status === 'connected';
   const [active, setActive] = useSi(G.threads[0] && G.threads[0].id);
@@ -55,7 +57,7 @@ function GmailPage({ onAction }) {
               React.createElement('div', { className: 'mc-mailrow__subj' }, t.subject),
               React.createElement('div', { className: 'mc-mailrow__snip' }, t.snippet),
               React.createElement('div', { className: 'mc-mailrow__meta' },
-                React.createElement('span', { onClick: (e) => { e.stopPropagation(); setStars(s => ({ ...s, [t.id]: !s[t.id] })); }, className: 'mc-mailrow__star' + (stars[t.id] ? ' on' : ''), role: 'button', 'aria-label': 'Star' }, React.createElement(Icon, { name: 'star', size: 13 })),
+                React.createElement('span', { onClick: (e) => { e.stopPropagation(); setStars(s => ({ ...s, [t.id]: !s[t.id] })); }, onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setStars(s => ({ ...s, [t.id]: !s[t.id] })); } }, tabIndex: 0, className: 'mc-mailrow__star' + (stars[t.id] ? ' on' : ''), role: 'button', 'aria-label': 'Star', 'aria-pressed': !!stars[t.id] }, React.createElement(Icon, { name: 'star', size: 13 })),
                 React.createElement('span', { className: 'mc-chip ' + t.labelTone, style: { padding: '2px 8px', fontSize: 9 } }, t.label),
                 t.count > 1 && React.createElement('span', { className: 'mc-mailrow__cnt' }, t.count))));
         })),
@@ -73,12 +75,28 @@ function GmailPage({ onAction }) {
             React.createElement('div', { className: 'mc-mailread__to' }, 'to me'),
             React.createElement('div', { className: 'mc-mailread__txt' }, m.body)))),
         React.createElement('div', { className: 'mc-mailread__actions' },
-          React.createElement(Btn, { variant: 'cyan', size: 'sm', icon: 'corner-down-right' }, 'Reply'),
+          // Reply opens the reply-using framework picker (sending needs Gmail
+          // write scope — not wired; we never pretend to send)
+          React.createElement(Btn, { variant: 'cyan', size: 'sm', icon: 'corner-down-right', onClick: () => setFrames(true), title: 'Pick a response framework — sending needs Gmail write scope (not connected yet)' }, 'Reply'),
           React.createElement(Btn, { variant: 'ghost', size: 'sm', icon: 'zap', onClick: () => setFrames(true) }, 'Agent reply'),
-          React.createElement(Btn, { variant: 'quiet', size: 'sm', icon: 'box' }, 'Save to Vault')),
+          React.createElement(Btn, { variant: 'quiet', size: 'sm', icon: 'box', onClick: () => {
+            if (window.MCLive && MCLive.online) {
+              const path = 'Inbox_Saves/' + (thread.subject || 'email').replace(/[^\w ]+/g, '').trim().slice(0, 60).replace(/ +/g, '_') + '.md';
+              MCLive.post('/api/vault/note', { path, content: '# ' + thread.subject + '\n\nFrom: ' + thread.from + ' · ' + thread.time + '\n\n' + body.map(m => m.body).join('\n\n---\n\n'), mode: 'create', by: 'lew' })
+                .then(() => onAction && onAction('toast', 'Saved to vault → ' + path))
+                .catch(() => onAction && onAction('toast', 'Vault save failed — see backend log.'));
+            } else onAction && onAction('toast', 'Backend offline — nothing saved.');
+          } }, 'Save to Vault')),
         React.createElement('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 12 } },
           React.createElement('span', { className: 'mono', style: { fontSize: 9.5, color: 'var(--fg-3)', alignSelf: 'center' } }, 'REPLY USING'),
-          ...window.MC.emailFrameworks.map(f => React.createElement('button', { key: f.id, className: 'mc-art__filter', onClick: () => { onAction && onAction('toast', 'Sage will reply using “' + f.name + '”.'); } }, f.name))))
+          ...window.MC.emailFrameworks.map(f => React.createElement('button', { key: f.id, className: 'mc-art__filter', onClick: () => {
+            // really hand the order to Sage's line (her bridge/harness picks it up)
+            if (window.MCLive && MCLive.online) {
+              MCLive.postMessage('agent:sage', 'lew', 'Draft a reply to “' + thread.subject + '” (from ' + thread.from + ') using the “' + f.name + '” framework. Show me the draft before anything sends.')
+                .then(() => onAction && onAction('toast', 'Sent to Sage’s line — she’ll draft with “' + f.name + '”.'))
+                .catch(() => onAction && onAction('toast', 'Couldn’t reach Sage’s channel.'));
+            } else onAction && onAction('toast', 'Backend offline — Sage was not notified.');
+          } }, f.name))))
     ),
     frames && React.createElement(FrameworksModal, { onClose: () => setFrames(false) }),
   );
@@ -88,6 +106,13 @@ function FrameworksModal({ onClose }) {
   const [frames, setFramesState] = useSi(window.MC.emailFrameworks);
   const tone = { emerald: '#34D399', gold: '#E8C766', cyan: '#23D6F5', crimson: '#F4516B' };
   const upd = (id, body) => setFramesState(p => p.map(f => f.id === id ? { ...f, body } : f));
+  const addFrame = () => setFramesState(p => [...p, { id: 'fw' + Date.now(), name: 'New framework', tone: 'cyan', glyph: 'pen-line', body: 'Describe exactly how the agent should reply…' }]);
+  const save = () => {
+    // persist — edits used to be silently discarded on close
+    window.MC.emailFrameworks = frames;
+    try { localStorage.setItem('mc_email_frameworks', JSON.stringify(frames)); } catch (e) {}
+    onClose();
+  };
   return React.createElement('div', { className: 'mc-modal-scrim', onMouseDown: e => e.target === e.currentTarget && onClose() },
     React.createElement('div', { className: 'mc-modal' },
       React.createElement('div', { className: 'mc-modal__head' },
@@ -101,9 +126,9 @@ function FrameworksModal({ onClose }) {
           React.createElement('div', { style: { flex: 1 } },
             React.createElement('div', { className: 'mc-frame__n' }, f.name),
             React.createElement('textarea', { value: f.body, onChange: e => upd(f.id, e.target.value), 'aria-label': f.name, style: { all: 'unset', boxSizing: 'border-box', width: '100%', fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--fg-2)', lineHeight: 1.5, marginTop: 2 } })))),
-        React.createElement(Btn, { variant: 'ghost', size: 'sm', icon: 'plus' }, 'Add framework')),
+        React.createElement(Btn, { variant: 'ghost', size: 'sm', icon: 'plus', onClick: addFrame }, 'Add framework')),
       React.createElement('div', { className: 'mc-modal__foot' },
-        React.createElement(Btn, { variant: 'cyan', size: 'sm', icon: 'check', onClick: onClose }, 'Save frameworks'))),
+        React.createElement(Btn, { variant: 'cyan', size: 'sm', icon: 'check', onClick: save }, 'Save frameworks'))),
   );
 }
 
@@ -208,7 +233,11 @@ function DrivePage() {
         React.createElement('span', { className: 'mono', style: { fontSize: 10, color: 'var(--fg-3)' } }, D.usedLabel),
         React.createElement('div', { className: 'mc-drive__meter' }, React.createElement('div', { className: 'mc-drive__fill', style: { width: D.used + '%' } })))),
     React.createElement('div', { className: 'mc-drive__grid' },
-      ...shown.map(f => React.createElement('button', { key: f.id, className: 'mc-drivefile' },
+      ...shown.map(f => React.createElement('button', {
+        key: f.id, className: 'mc-drivefile',
+        title: f.url ? 'Open in Google Drive' : 'Opening files needs the Drive connection',
+        onClick: () => { if (f.url) window.open(f.url, '_blank', 'noopener'); else location.hash = 'connectors'; },
+      },
         React.createElement('div', { className: 'mc-drivefile__ico tone-' + f.tone }, React.createElement(Icon, { name: f.glyph, size: 21 })),
         React.createElement('div', { className: 'mc-drivefile__name' }, f.name),
         React.createElement('div', { className: 'mc-drivefile__meta' },

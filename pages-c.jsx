@@ -8,7 +8,18 @@ function agByC(id) {
 
 // ===================== BUSINESS GOALS =====================
 function GoalsPage() {
-  const G = window.MC.businessGoals;
+  // "Set a business goal" is a real control: local add (persisted) until the
+  // backend grows a goals API
+  const [adding, setAdding] = useSc(false);
+  const [draft, setDraft] = useSc('');
+  const [extra, setExtra] = useSc(() => { try { return JSON.parse(localStorage.getItem('mc_custom_goals')) || []; } catch (e) { return []; } });
+  const addGoal = () => {
+    const t = draft.trim(); if (!t) return;
+    const next = [{ id: 'bg' + Date.now(), title: t, owner: 'sage', tone: 'cyan', current: 0, target: 100, metric: '% complete', trend: [0, 0, 0, 0, 0], due: 'TBD' }, ...extra];
+    setExtra(next); try { localStorage.setItem('mc_custom_goals', JSON.stringify(next)); } catch (e) {}
+    setDraft(''); setAdding(false);
+  };
+  const G = [...extra, ...window.MC.businessGoals];
   const toneFill = { cyan: 'linear-gradient(90deg,#0E8FA8,#23D6F5)', gold: 'linear-gradient(90deg,#A87B2E,#F3D27A)', crimson: 'linear-gradient(90deg,#B0253C,#FF8095)', emerald: 'linear-gradient(90deg,#0E8F66,#34D399)' };
   const toneCol = { cyan: '#23D6F5', gold: '#E8C766', crimson: '#FF8095', emerald: '#34D399' };
   return React.createElement('div', { className: 'fade-up' },
@@ -31,7 +42,18 @@ function GoalsPage() {
               React.createElement('span', { style: { width: 18, height: 18, borderRadius: 6, background: owner.avatarGrad, display: 'grid', placeItems: 'center', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 8, color: '#06121A' } }, owner.name[0]),
               owner.name + ' driving'),
             React.createElement('span', null, 'Due ' + g.due))); })),
-    React.createElement('div', { style: { marginTop: 16 } }, React.createElement(Btn, { variant: 'cyan', size: 'sm', icon: 'plus' }, 'Set a business goal')),
+    React.createElement('div', { style: { marginTop: 16, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' } },
+      adding
+        ? React.createElement(React.Fragment, null,
+            React.createElement('input', {
+              autoFocus: true, value: draft, onChange: e => setDraft(e.target.value),
+              onKeyDown: e => { if (e.key === 'Enter') addGoal(); if (e.key === 'Escape') setAdding(false); },
+              placeholder: 'Name the outcome — e.g. “Book 10 demos in June”…', 'aria-label': 'New business goal',
+              style: { flex: 1, minWidth: 240, background: 'rgba(10,16,28,.9)', border: '1px solid rgba(35,214,245,.3)', borderRadius: 10, padding: '9px 12px', color: 'var(--fg-1)', font: '13px var(--font-body)', outline: 'none' },
+            }),
+            React.createElement(Btn, { variant: 'cyan', size: 'sm', icon: 'check', onClick: addGoal }, 'Add goal'),
+            React.createElement(Btn, { variant: 'quiet', size: 'sm', icon: 'x', onClick: () => setAdding(false) }, 'Cancel'))
+        : React.createElement(Btn, { variant: 'cyan', size: 'sm', icon: 'plus', onClick: () => setAdding(true) }, 'Set a business goal')),
   );
 }
 
@@ -54,7 +76,7 @@ function SkillsPage() {
     React.createElement('div', { className: 'mc-art__filters', style: { marginBottom: 16 } },
       ...cats.map(c => React.createElement('button', { key: c, className: 'mc-art__filter' + (filter === c ? ' is-active' : ''), onClick: () => setFilter(c) }, c))),
     React.createElement('div', { className: 'mc-skillgrid' },
-      ...shown.map(s => React.createElement('div', { key: s.id, className: 'mc-skill', onClick: () => setEditing(s), role: 'button', tabIndex: 0 },
+      ...shown.map(s => React.createElement('div', { key: s.id, className: 'mc-skill', onClick: () => setEditing(s), role: 'button', tabIndex: 0, onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setEditing(s); } } },
         React.createElement('div', { className: 'mc-skill__top' },
           React.createElement('div', { className: 'mc-skill__ico' }, React.createElement(Icon, { name: s.glyph, size: 19 })),
           React.createElement('div', { style: { flex: 1, minWidth: 0 } },
@@ -118,7 +140,7 @@ function SkillModal({ onClose, onCreate }) {
 }
 
 // ===================== WORKFLOWS =====================
-function WorkflowsPage() {
+function WorkflowsPage({ onNav }) {
   const [wfs, setWfs] = useSc(window.MC.workflows);
   const toggle = (id) => setWfs(p => p.map(w => w.id === id ? { ...w, status: w.status === 'active' ? 'paused' : 'active' } : w));
   const active = wfs.filter(w => w.status === 'active').length;
@@ -127,7 +149,8 @@ function WorkflowsPage() {
       React.createElement('div', { className: 'mc-page-head', style: { marginBottom: 0 } },
         React.createElement('h2', null, 'Workflows'),
         React.createElement('p', null, active + ' active automations running across the team. Each fires on a trigger and logs back to the vault.')),
-      React.createElement(Btn, { variant: 'cyan', size: 'sm', icon: 'plus' }, 'New workflow')),
+      // honest: real automations are wired in n8n / agent harnesses — point there
+      React.createElement(Btn, { variant: 'cyan', size: 'sm', icon: 'plus', title: 'Workflows are wired through your connectors (n8n, MCP agents)', onClick: () => onNav && onNav('connectors') }, 'New workflow')),
     ...wfs.map(w => { const ag = agByC(w.agent);
       return React.createElement('div', { key: w.id, className: 'mc-wf' },
         React.createElement('div', { className: 'mc-wf__top' },
@@ -148,7 +171,7 @@ function WorkflowsPage() {
 }
 
 // ===================== REPORTS =====================
-function ReportsPage() {
+function ReportsPage({ onNav }) {
   const R = window.MC.reports;
   const grad = { sage: 'linear-gradient(90deg,#0E8FA8,#23D6F5)', kratos: 'linear-gradient(90deg,#B0253C,#FF8095)', faye: 'linear-gradient(90deg,#0E8F66,#34D399)', chloe: 'linear-gradient(90deg,#A87B2E,#F3D27A)' };
   return React.createElement('div', { className: 'fade-up' },
@@ -157,7 +180,8 @@ function ReportsPage() {
       React.createElement('p', null, 'What each of your agents produced — summarized weekly with the numbers that matter. Click an agent to go deeper.')),
     React.createElement('div', { className: 'mc-reportgrid' },
       ...R.map(r => { const ag = agByC(r.agent);
-        return React.createElement('div', { key: r.id, className: 'mc-report', style: { '--rep-grad': grad[r.agent] } },
+        // the page promises "Click an agent to go deeper" — make it true
+        return React.createElement('div', { key: r.id, className: 'mc-report', style: { '--rep-grad': grad[r.agent], cursor: 'pointer' }, role: 'button', tabIndex: 0, title: 'Open ' + ag.name, onClick: () => onNav && onNav('agent:' + r.agent), onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNav && onNav('agent:' + r.agent); } } },
           React.createElement('div', { className: 'mc-report__top' },
             React.createElement('div', { className: 'mc-report__av', style: { background: ag.avatarGrad } }, ag.name[0]),
             React.createElement('div', { style: { flex: 1 } },

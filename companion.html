@@ -327,11 +327,11 @@ function tick() {
    ============================================================ */
 const AC = new (window.AudioContext || window.webkitAudioContext)();
 let analyser = null;
+const meterBuf = new Uint8Array(64); // reused — was a fresh alloc every frame forever
 (function meterLoop() {
   if (analyser) {
-    const data = new Uint8Array(analyser.frequencyBinCount);
-    analyser.getByteFrequencyData(data);
-    let sum = 0; for (let i = 2; i < 40; i++) sum += data[i];
+    analyser.getByteFrequencyData(meterBuf);
+    let sum = 0; for (let i = 2; i < 40; i++) sum += meterBuf[i];
     audioEnergy = Math.min(1, (sum / 38) / 110);
   } else if (state !== 'speaking') audioEnergy *= 0.9;
   requestAnimationFrame(meterLoop);
@@ -348,11 +348,14 @@ async function speakProvider(text, who) {
     const blob = await r.blob();
     $('voiceHint').textContent = 'VOICE: ElevenLabs';
     return await new Promise((resolve) => {
-      const a = new Audio(URL.createObjectURL(blob));
+      const url = URL.createObjectURL(blob);
+      const a = new Audio(url);
       const src = AC.createMediaElementSource(a);
       analyser = AC.createAnalyser(); analyser.fftSize = 128;
       src.connect(analyser); analyser.connect(AC.destination);
-      const fin = () => { analyser = null; resolve(); };
+      // tear the per-reply graph down — sources/analysers/blobs accumulated
+      // per spoken reply (perf audit P2)
+      const fin = () => { try { src.disconnect(); analyser && analyser.disconnect(); } catch (e) {} analyser = null; URL.revokeObjectURL(url); resolve(); };
       a.onended = fin; a.onerror = fin;
       AC.resume(); a.play().catch(fin);
     });

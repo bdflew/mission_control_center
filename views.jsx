@@ -5,6 +5,12 @@
 // chat = MCLive.useChannel, approvals = MCLive.resolveApproval, voice = MCVoice.
 const { useState: useS, useEffect: useE, useRef: useR } = React;
 
+// restore custom personas added via the Pantheon form in earlier sessions
+try {
+  const cp = JSON.parse(localStorage.getItem('mc_custom_personas') || '[]');
+  cp.forEach(p => { if (!window.MC.personas.find(x => x.id === p.id)) window.MC.personas.push(p); });
+} catch (e) {}
+
 // ============ AGENT DETAIL ============
 const AGENT_SEED_CHAT = {
   sage: [
@@ -29,10 +35,35 @@ const AGENT_SEED_CHAT = {
   ],
 };
 
+// 1-second mission clock isolated so its tick re-renders ONLY this node,
+// not the whole war room (feed, radar, boards) — perf finding P2.
+function WarClock() {
+  const [now, setNow] = useS(() => new Date());
+  useE(() => { const iv = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(iv); }, []);
+  return (
+    <div className="v3w-clockbox">
+      <div className="war-clock" aria-label="Mission clock">{now.toLocaleTimeString('en-GB', { hour12: false })}</div>
+      <div className="v3w-clock-utc">{now.toISOString().slice(11, 19)} UTC</div>
+    </div>
+  );
+}
+
 function AgentPage({ id, onNav }) {
   const a = window.MC.agents.find(x => x.id === id);
   const [tab, setTab] = useS('overview');
-  if (!a) return null;
+  if (!a) {
+    // honest not-found instead of a blank pane (bad hash / future agent id)
+    return (
+      <div className="mc-placeholder" style={{ minHeight: 220 }}>
+        <div>
+          <div className="mc-placeholder__ico"><Icon name="circle-help" size={30} /></div>
+          <h3>No agent “{id}”</h3>
+          <p>That agent isn’t on the roster. Pick one from the sidebar.</p>
+          <Btn variant="cyan" size="sm" icon="arrow-right" onClick={() => onNav('home')}>Back to Mission Control</Btn>
+        </div>
+      </div>
+    );
+  }
   const cust = (window.MC.agentCustom || {})[a.id];
   const tabs = [
     { id: 'overview', label: 'Overview', glyph: 'layout-dashboard' },
@@ -83,12 +114,12 @@ function AgentPage({ id, onNav }) {
         ))}
       </div>
       {/* tab body */}
-      <div key={tab} className="fade-up">{renderAgentTab(tab, a)}</div>
+      <div key={tab} className="fade-up">{renderAgentTab(tab, a, setTab, onNav)}</div>
     </div>
   );
 }
 
-function renderAgentTab(tab, a) {
+function renderAgentTab(tab, a, setTab, onNav) {
   if (tab === 'overview') {
     return React.createElement('div', { className: 'mc-agent__body' },
       React.createElement('div', { className: 'mc-tpanel' },
@@ -104,12 +135,12 @@ function renderAgentTab(tab, a) {
             React.createElement('div', { style: { display: 'flex', alignItems: 'center', marginTop: 4 } },
               React.createElement('div', { className: 'mc-goal__bar', style: { flex: 1 } }, React.createElement('div', { className: 'mc-goal__fill', style: { width: a.goals[0].p + '%' } })),
               React.createElement('span', { className: 'mc-goal__pct' }, a.goals[0].p + '%')))),
-        React.createElement('div', { style: { marginTop: 18 } }, React.createElement(Btn, { variant: 'ghost', size: 'sm', icon: 'message-square' }, 'Message ' + a.name))),
+        React.createElement('div', { style: { marginTop: 18 } }, React.createElement(Btn, { variant: 'ghost', size: 'sm', icon: 'message-square', onClick: () => setTab && setTab('chat') }, 'Message ' + a.name))),
     );
   }
   if (tab === 'goals') {
     return React.createElement('div', { className: 'mc-tpanel' },
-      React.createElement('div', { className: 'mc-phead' }, React.createElement('div', { className: 'mc-ptitle' }, React.createElement('i', null, React.createElement(Icon, { name: 'flag', size: 15 })), 'Active Goals'), React.createElement(Btn, { variant: 'ghost', size: 'sm', icon: 'plus' }, 'Set Goal')),
+      React.createElement('div', { className: 'mc-phead' }, React.createElement('div', { className: 'mc-ptitle' }, React.createElement('i', null, React.createElement(Icon, { name: 'flag', size: 15 })), 'Active Goals'), React.createElement(Btn, { variant: 'ghost', size: 'sm', icon: 'plus', onClick: () => onNav && onNav('goals') }, 'Set Goal')),
       React.createElement('div', { className: 'mc-goal' },
         ...a.goals.map((g, i) => React.createElement('div', { key: i, className: 'mc-goal__row' },
           React.createElement('div', { className: 'top' }, React.createElement('span', { className: 'mc-goal__t' }, g.t), React.createElement('span', { className: 'mc-goal__due' }, g.p === 100 ? 'complete' : 'due ' + g.due)),
@@ -119,7 +150,8 @@ function renderAgentTab(tab, a) {
     );
   }
   if (tab === 'health') {
-    const pct = parseFloat(a.uptime);
+    const raw = parseFloat(a.uptime);
+    const pct = Number.isFinite(raw) ? raw : 0; // de-faked '—' must not NaN the ring
     return React.createElement('div', { className: 'mc-agent__body' },
       React.createElement('div', { className: 'mc-tpanel', style: { textAlign: 'center' } },
         React.createElement('div', { className: 'mc-phead', style: { justifyContent: 'center' } }, React.createElement('div', { className: 'mc-ptitle' }, React.createElement('i', null, React.createElement(Icon, { name: 'gauge', size: 15 })), 'Reliability')),
@@ -135,9 +167,9 @@ function renderAgentTab(tab, a) {
     );
   }
   if (tab === 'chat') return React.createElement(AgentChat, { agent: a });
-  if (tab === 'role') return React.createElement(AgentRole, { a });
+  if (tab === 'role') return React.createElement(AgentRole, { a, setTab, onNav });
   if (tab === 'improve') return React.createElement(AgentImprove, { a });
-  if (tab === 'brain') return React.createElement(AgentBrain, { a });
+  if (tab === 'brain') return React.createElement(AgentBrain, { a, setTab, onNav });
 }
 
 function AgentImprove({ a }) {
@@ -180,7 +212,7 @@ function AgentImprove({ a }) {
   );
 }
 
-function AgentBrain({ a }) {
+function AgentBrain({ a, setTab, onNav }) {
   const brain = (window.MC.agentBrains || {})[a.id] || { notes: 0, focus: [], recent: [] };
   return React.createElement('div', { className: 'mc-agent__body' },
     React.createElement('div', { className: 'mc-tpanel' },
@@ -192,23 +224,36 @@ function AgentBrain({ a }) {
       React.createElement('div', { style: { fontFamily: 'var(--font-ui)', fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--fg-3)' } }, 'Focus areas'),
       React.createElement('div', { className: 'mc-brain__focus' }, ...brain.focus.map((f, i) => React.createElement('span', { key: i, className: 'mc-brain__chip' }, f))),
       React.createElement('div', { style: { marginTop: 6, display: 'flex', gap: 8 } },
-        React.createElement(Btn, { variant: 'ghost', size: 'sm', icon: 'eye' }, 'Open in Obsidian'),
-        React.createElement(Btn, { variant: 'quiet', size: 'sm', icon: 'message-square' }, 'Ask ' + a.name + ' about it'))),
+        React.createElement(Btn, { variant: 'ghost', size: 'sm', icon: 'eye', onClick: () => onNav && onNav('obsidian') }, 'Open in Obsidian'),
+        React.createElement(Btn, { variant: 'quiet', size: 'sm', icon: 'message-square', onClick: () => setTab && setTab('chat') }, 'Ask ' + a.name + ' about it'))),
     React.createElement('div', { className: 'mc-tpanel' },
       React.createElement('div', { className: 'mc-phead' }, React.createElement('div', { className: 'mc-ptitle' }, React.createElement('i', null, React.createElement(Icon, { name: 'zap', size: 15 })), 'Recent Notes')),
       React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 3 } },
-        ...brain.recent.map((r, i) => React.createElement('div', { key: i, className: 'mc-brain__note' },
+        ...brain.recent.map((r, i) => React.createElement('button', { key: i, className: 'mc-brain__note', onClick: () => onNav && onNav('galaxy'), style: { cursor: 'pointer', textAlign: 'left', background: 'none', border: 'none', padding: 0, font: 'inherit', color: 'inherit', display: 'flex', alignItems: 'center', gap: 8 } },
           React.createElement('span', { className: 'mc-brain__star' }),
           React.createElement('span', { style: { fontFamily: 'var(--font-ui)', fontSize: 13, color: 'var(--fg-1)' } }, r),
           React.createElement(Icon, { name: 'chevron-right', size: 14, style: { color: 'var(--fg-3)', marginLeft: 'auto' } }))))),
   );
 }
 
-function AgentRole({ a }) {
+function AgentRole({ a, setTab, onNav }) {
   const c = (window.MC.agentCustom || {})[a.id];
   if (!c) return null;
   const stateChip = { working: 'good', approval: 'gold', idle: 'slate' };
   const toolIco = ['sliders', 'zap', 'eye', 'plus', 'target', 'shield-check'];
+  // every tool is clickable: known intents route to their real page, the rest
+  // open this agent's chat so the order can actually be given
+  const toolNav = (label) => {
+    const t = String(label).toLowerCase();
+    if (t.includes('content engine') || t.includes('content')) return () => onNav && onNav('content');
+    if (t.includes('queue') || t.includes('approval')) return () => onNav && onNav('home');
+    if (t.includes('security') || t.includes('scan')) return () => onNav && onNav('security');
+    if (t.includes('build') || t.includes('kanban') || t.includes('project')) return () => onNav && onNav('kanban');
+    if (t.includes('studio') || t.includes('video')) return () => onNav && onNav('studio');
+    if (t.includes('goal')) return () => onNav && onNav('goals');
+    if (t.includes('report')) return () => onNav && onNav('reports');
+    return () => setTab && setTab('chat');
+  };
   return React.createElement('div', { className: 'mc-agent theme-' + a.theme },
     React.createElement('div', { className: 'mc-role' },
       React.createElement('div', { className: 'mc-tpanel' },
@@ -229,7 +274,7 @@ function AgentRole({ a }) {
       React.createElement('div', { className: 'mc-tpanel' },
         React.createElement('div', { className: 'mc-phead' }, React.createElement('div', { className: 'mc-ptitle' }, React.createElement('i', null, React.createElement(Icon, { name: 'cpu', size: 15 })), c.headline.split(' · ')[0] + ' Tools')),
         React.createElement('div', { className: 'mc-role__tools' },
-          ...c.tools.map((t, i) => React.createElement('button', { key: i, className: 'mc-role__tool' },
+          ...c.tools.map((t, i) => React.createElement('button', { key: i, className: 'mc-role__tool', onClick: toolNav(t), title: 'Open' },
             React.createElement('span', { className: 'ic' }, React.createElement(Icon, { name: toolIco[i % toolIco.length], size: 13 })), t)))) ),
   );
 }
@@ -339,13 +384,12 @@ function WarRoom() {
   const present = window.MC.agents;
   const onlineN = window.MCLive.onlineCount();
 
-  // ---- war-deck state: mission clock, live ops ticker, live refresh ----
-  const [now, setNow] = useS(() => new Date());
+  // ---- war-deck state: live ops ticker, live refresh ----
+  // (the 1s mission clock lives in its own <WarClock/> so the tick doesn't
+  // re-render the entire war room every second)
   const [events, setEvents] = useS([]);
   const seq = useR(0);
   const [, setTick] = useS(0);
-
-  useE(() => { const iv = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(iv); }, []);
   useE(() => {
     const bump = () => setTick(n => n + 1);
     window.addEventListener('mc:live', bump);
@@ -383,8 +427,6 @@ function WarRoom() {
   const mode = window.MC.autonomy || 'manual';
   const mission = window.MC.mission || { name: 'No active mission', phase: '', progress: 0, steps: [] };
   const decide = (aid, d) => { try { window.MCLive.resolveApproval(aid, d).catch(() => {}); } catch (e) {} };
-  const hhmmss = now.toLocaleTimeString('en-GB', { hour12: false });
-  const utc = now.toISOString().slice(11, 19);
 
   return (
     <div className="sci-wrap">
@@ -398,10 +440,7 @@ function WarRoom() {
               <div className="hud-eyebrow">COMMAND CHANNEL · TEAM OPS</div>
               <div className="hud-title v3w-war-title">WAR ROOM</div>
             </div>
-            <div className="v3w-clockbox">
-              <div className="war-clock" aria-label="Mission clock">{hhmmss}</div>
-              <div className="v3w-clock-utc">{utc} UTC</div>
-            </div>
+            <WarClock />
             <div className="v3w-defconbox">
               <div className="hud-eyebrow">READINESS · {readiness}</div>
               <div className="war-defcon" role="img" aria-label={'Readiness: ' + readiness}>
@@ -830,6 +869,27 @@ function NewConnectionModal({ onClose, onCreate, initialSel = null, initialMetho
 function Pantheon({ onNav }) {
   const [summoned, setSummoned] = useS({});
   const [auto, setAuto] = useS({ athena: false, mercury: true, vulcan: false });
+  // Add-a-Persona is a real form now: controlled inputs, persisted roster
+  const [pName, setPName] = useS('');
+  const [pJob, setPJob] = useS('');
+  const [pPrompt, setPPrompt] = useS('');
+  const [, bumpP] = useS(0);
+  const PERSONA_GRADS = ['linear-gradient(145deg,#0E8FA8,#23D6F5)', 'linear-gradient(145deg,#A87B2E,#F3D27A)', 'linear-gradient(145deg,#6D28D9,#A78BFA)', 'linear-gradient(145deg,#0E8F66,#34D399)'];
+  const addPersona = () => {
+    const name = pName.trim(); if (!name) return;
+    const p = {
+      id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name,
+      role: pJob.trim() || 'Specialist', model: 'claude (default)',
+      accent: '#23D6F5', avatarGrad: PERSONA_GRADS[window.MC.personas.length % PERSONA_GRADS.length],
+      glyph: 'sparkles', blurb: pPrompt.trim() || 'Custom persona.', custom: true,
+    };
+    window.MC.personas.push(p);
+    try {
+      const saved = JSON.parse(localStorage.getItem('mc_custom_personas') || '[]');
+      saved.push(p); localStorage.setItem('mc_custom_personas', JSON.stringify(saved));
+    } catch (e) {}
+    setPName(''); setPJob(''); setPPrompt(''); bumpP(n => n + 1);
+  };
   return React.createElement('div', { className: 'fade-up' },
     React.createElement('div', { className: 'mc-page-head' },
       React.createElement('h2', null, 'Pantheon'),
@@ -857,10 +917,10 @@ function Pantheon({ onNav }) {
       React.createElement('div', { className: 'holo-sheen' }),
       React.createElement('div', { className: 'mc-ptitle', style: { marginBottom: 14 } }, React.createElement('i', null, React.createElement(Icon, { name: 'plus', size: 15 })), 'Add a Persona'),
       React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9, marginBottom: 11 } },
-        React.createElement('div', { className: 'mc-conn__field' }, React.createElement('i', null, React.createElement(Icon, { name: 'circle-dot', size: 14 })), React.createElement('input', { placeholder: 'Name (e.g. Apollo)', 'aria-label': 'Persona name' })),
-        React.createElement('div', { className: 'mc-conn__field' }, React.createElement('i', null, React.createElement(Icon, { name: 'target', size: 14 })), React.createElement('input', { placeholder: 'Job (e.g. Analytics)', 'aria-label': 'Persona job' }))),
-      React.createElement('div', { className: 'mc-conn__field', style: { marginBottom: 11 } }, React.createElement('i', null, React.createElement(Icon, { name: 'pen-line', size: 14 })), React.createElement('input', { placeholder: 'System prompt — how this persona thinks and works…', 'aria-label': 'System prompt' })),
-      React.createElement(Btn, { variant: 'cyan', size: 'sm', icon: 'plus' }, 'Add to Pantheon')),
+        React.createElement('div', { className: 'mc-conn__field' }, React.createElement('i', null, React.createElement(Icon, { name: 'circle-dot', size: 14 })), React.createElement('input', { value: pName, onChange: e => setPName(e.target.value), placeholder: 'Name (e.g. Apollo)', 'aria-label': 'Persona name' })),
+        React.createElement('div', { className: 'mc-conn__field' }, React.createElement('i', null, React.createElement(Icon, { name: 'target', size: 14 })), React.createElement('input', { value: pJob, onChange: e => setPJob(e.target.value), placeholder: 'Job (e.g. Analytics)', 'aria-label': 'Persona job' }))),
+      React.createElement('div', { className: 'mc-conn__field', style: { marginBottom: 11 } }, React.createElement('i', null, React.createElement(Icon, { name: 'pen-line', size: 14 })), React.createElement('input', { value: pPrompt, onChange: e => setPPrompt(e.target.value), onKeyDown: e => { if (e.key === 'Enter') addPersona(); }, placeholder: 'System prompt — how this persona thinks and works…', 'aria-label': 'System prompt' })),
+      React.createElement(Btn, { variant: 'cyan', size: 'sm', icon: 'plus', onClick: addPersona }, 'Add to Pantheon')),
   );
 }
 

@@ -197,7 +197,16 @@ function listen() {
         if (direct || grouped) { queue.push({ channel: m.channel, msg: m }); pump(); }
       }
     });
-    res.on('end', () => { log('SSE dropped — reconnecting in 3s'); setTimeout(listen, 3000); });
+    // 'end' AND stream 'error' both reconnect — a mid-stream ECONNRESET
+    // (backend restart) otherwise crashes the bridge via unhandled 'error'.
+    let reconnected = false;
+    const reconnect = (why, ms) => {
+      if (reconnected) return; reconnected = true;
+      log('SSE ' + why + ' — reconnecting in ' + (ms / 1000) + 's');
+      setTimeout(listen, ms);
+    };
+    res.on('end', () => reconnect('dropped', 3000));
+    res.on('error', () => reconnect('stream error', 3000));
   });
   r.on('error', () => { log('SSE error — reconnecting in 5s'); setTimeout(listen, 5000); });
   r.end();

@@ -21,11 +21,14 @@
 /* ---------- holographic panel upgrade ---------- */
 .holo {
   position: relative;
+  /* near-opaque glass WITHOUT backdrop-filter: a dozen blurred panels over the
+     animated canvas forced a continuous fullscreen blur repaint every frame —
+     the main steady-state GPU cost (perf audit P2). The gradient alone reads
+     identical at these opacities. */
   background:
-    linear-gradient(180deg, rgba(16, 26, 44, 0.86), rgba(9, 15, 28, 0.92));
+    linear-gradient(180deg, rgba(16, 26, 44, 0.93), rgba(9, 15, 28, 0.96));
   border: 1px solid color-mix(in srgb, var(--acc, #23D6F5) 22%, transparent);
   border-radius: 14px;
-  backdrop-filter: blur(10px);
   box-shadow:
     0 18px 50px -22px rgba(0, 0, 0, 0.75),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);

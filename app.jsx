@@ -102,7 +102,7 @@ function App() {
   else if (view === 'hermes') body = React.createElement(HermesPage, { onNav: nav });
   else if (view === 'dreaming') body = React.createElement(DreamingPage, { onNav: nav });
   else if (view === 'paperclip') body = React.createElement(window.OfficePage || PaperclipPage, { onNav: nav });
-  else if (view === 'kanban') body = React.createElement(KanbanPage, { onAction: doAction });
+  else if (view === 'kanban') body = React.createElement(KanbanPage, { onAction: doAction, onNav: nav });
   else if (view === 'studio') body = React.createElement(StudioPage, { onAction: doAction });
   else if (view === 'gmail') body = React.createElement(GmailPage, { onAction: doAction });
   else if (view === 'calendar') body = React.createElement(CalendarPage, { onAction: doAction });

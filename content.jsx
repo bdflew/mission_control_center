@@ -36,14 +36,15 @@ function WebhookModal({ surface, onClose, onSave }) {
 }
 window.WebhookModal = WebhookModal;
 
-function ConnectStrip({ items, onToast }) {
-  const [state, setState] = useSd(() => Object.fromEntries(items.map(i => [i.id, i.live])));
+function ConnectStrip({ items, onToast, onNav }) {
+  // honest: clicking Connect routes to the real Connectors page — it does not
+  // pretend a provider got wired by flipping a local chip
   return React.createElement('div', { style: { display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 18 } },
-    ...items.map(i => React.createElement('div', { key: i.id, style: { display: 'flex', alignItems: 'center', gap: 9, padding: '8px 13px', borderRadius: 11, background: 'rgba(20,25,34,0.6)', border: '1px solid ' + (state[i.id] ? 'rgba(52,211,153,0.3)' : 'rgba(206,214,224,0.12)') } },
+    ...items.map(i => React.createElement('div', { key: i.id, style: { display: 'flex', alignItems: 'center', gap: 9, padding: '8px 13px', borderRadius: 11, background: 'rgba(20,25,34,0.6)', border: '1px solid ' + (i.live ? 'rgba(52,211,153,0.3)' : 'rgba(206,214,224,0.12)') } },
       React.createElement('div', { style: { width: 26, height: 26, borderRadius: 8, display: 'grid', placeItems: 'center', background: 'rgba(35,214,245,0.1)', color: 'var(--acc)' } }, React.createElement(Icon, { name: i.glyph, size: 14 })),
       React.createElement('span', { style: { fontFamily: 'var(--font-ui)', fontSize: 12.5, fontWeight: 600, color: 'var(--fg-1)' } }, i.name),
-      React.createElement('span', { className: 'pulse-dot ' + (state[i.id] ? 'good' : 'slate'), style: { width: 7, height: 7 } }),
-      React.createElement(Btn, { variant: state[i.id] ? 'quiet' : 'ghost', size: 'sm', icon: state[i.id] ? 'check' : 'plug', onClick: () => { setState(s => ({ ...s, [i.id]: true })); onToast && onToast('toast', i.name + ' connected.'); } }, state[i.id] ? 'Connected' : 'Connect'))));
+      React.createElement('span', { className: 'pulse-dot ' + (i.live ? 'good' : 'slate'), style: { width: 7, height: 7 } }),
+      React.createElement(Btn, { variant: i.live ? 'quiet' : 'ghost', size: 'sm', icon: i.live ? 'check' : 'plug', onClick: () => { if (i.live) { onToast && onToast('toast', i.name + ' is connected.'); } else if (onNav) onNav('connectors'); else onToast && onToast('toast', 'Open Connectors to wire ' + i.name + '.'); } }, i.live ? 'Connected' : 'Connect'))));
 }
 
 function ContentPage({ onAction, onNav }) {
@@ -67,7 +68,7 @@ function ContentPage({ onAction, onNav }) {
 
   const toggleAuto = () => {
     const next = !auto; setAuto(next);
-    if (next) { if (!hook) setHookModal(true); else onAction && onAction('toast', 'Webhook fired → ' + agByD(hook.agent).name + ' is now autonomous.'); }
+    if (next) { if (!hook) setHookModal(true); else onAction && onAction('toast', 'Autonomous armed — new briefs fire ' + agByD(hook.agent).name + '’s webhook.'); }
   };
   const spec = window.MC.contentSpecs[openSpec];
 
@@ -77,6 +78,8 @@ function ContentPage({ onAction, onNav }) {
     const id = 'ce' + Date.now();
     setPieces(p => [{ id, type, title: brief.trim().slice(0, 48), stage: 'capture', by: 'chloe', kw: 'new', progress: 4 }, ...p]);
     if (auto) {
+      // really notify the connected agent (honest delivery/failure toast)
+      if (hook && window.fireAgentHook) window.fireAgentHook(hook, { surface: 'content', kind: type, brief: brief.trim() }, onAction, agByD(hook.agent).name);
       setWorking(true); setAgentLog([]);
       const steps = [
         { s: 'capture', m: 'Picked up the brief and classified it as a ' + t.name.toLowerCase() + '.' },
@@ -84,12 +87,12 @@ function ContentPage({ onAction, onNav }) {
         { s: 'draft', m: 'Drafting in your brand voice — every line ties to an outcome.' },
         { s: 'optimize', m: 'SEO + voice-guard. Flagged 1 line that drifted; rewrote it.' },
         { s: 'produce', m: 'Producing media via Hyperframes…' },
-        { s: 'distribute', m: 'Queued to publish across blog, social, and email. Logged to vault.' },
+        { s: 'distribute', m: 'Pipeline preview complete — real publishing happens when the connected agent runs it.' },
       ];
       steps.forEach((st, i) => setTimeout(() => {
         setAgentLog(l => [...l, { text: st.m }]);
         setPieces(p => p.map(x => x.id === id ? { ...x, stage: st.s, progress: Math.round((i + 1) / steps.length * 100) } : x));
-        if (i === steps.length - 1) { setWorking(false); onAction && onAction('toast', 'Done — piece queued to distribute.'); }
+        if (i === steps.length - 1) { setWorking(false); onAction && onAction('toast', 'Pipeline preview done — the connected agent does the real run.'); }
       }, 850 * (i + 1)));
     } else { onAction && onAction('toast', 'Captured — sitting in the engine for you to drive.'); }
     setBrief('');
@@ -106,7 +109,7 @@ function ContentPage({ onAction, onNav }) {
         React.createElement('button', { className: 'mc-switch ' + (auto ? 'on' : ''), onClick: toggleAuto, 'aria-label': 'Autonomous mode', style: auto ? { background: '#34D399' } : null }, React.createElement('span', { className: 'mc-switch__knob' })))),
 
     // connect strip
-    React.createElement(ConnectStrip, { onToast: onAction, items: [
+    React.createElement(ConnectStrip, { onToast: onAction, onNav, items: [
       { id: 'hyperframes', name: 'Hyperframes', glyph: 'clapperboard', live: true },
       { id: 'heygen', name: 'HeyGen', glyph: 'video', live: false },
       { id: 'elevenlabs', name: 'ElevenLabs', glyph: 'activity', live: false },

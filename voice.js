@@ -55,7 +55,13 @@
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: clean }),
       }).then(r => { if (!r.ok) throw 0; return r.blob(); })
-        .then(b => new Audio(URL.createObjectURL(b)).play().catch(browserSpeak))
+        .then(b => {
+          const url = URL.createObjectURL(b);
+          const a = new Audio(url);
+          a.onended = () => URL.revokeObjectURL(url); // blobs leaked per reply
+          a.onerror = () => URL.revokeObjectURL(url);
+          a.play().catch(() => { URL.revokeObjectURL(url); browserSpeak(); });
+        })
         .catch(browserSpeak);
     } else browserSpeak();
   };

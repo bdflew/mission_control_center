@@ -139,8 +139,16 @@
   }
   MCLive.resolveApproval = (id, decision) => post('/api/approvals/resolve', { id, decision });
 
+  let vaultTimer = null;
   async function refreshVault() {
-    try { const v = await get('/api/vault?force=1'); patchVault(v); } catch {}
+    // debounced + UNFORCED: writeNote already invalidates the server cache, so
+    // the next normal read is fresh. force=1 made every vault SSE event trigger
+    // a full synchronous vault rescan per open dashboard (perf audit P2).
+    if (vaultTimer) return;
+    vaultTimer = setTimeout(async () => {
+      vaultTimer = null;
+      try { const v = await get('/api/vault'); patchVault(v); window.dispatchEvent(new Event('mc:live')); } catch {}
+    }, 1200);
   }
 
   // Live integrations — each only patches window.MC when the backend reports a

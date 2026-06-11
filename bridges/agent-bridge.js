@@ -272,7 +272,17 @@ function listen() {
         if (should) { queue.push({ channel: m.channel, msg: m, hop, peer }); pump(); }
       }
     });
-    res.on('end', () => { log('SSE dropped — reconnecting in 3s'); setTimeout(listen, 3000); });
+    // 'end' AND stream 'error' both reconnect — a mid-stream ECONNRESET
+    // (backend restart) otherwise throws an unhandled 'error' event and
+    // crashes the whole bridge process. One reconnect per drop.
+    let reconnected = false;
+    const reconnect = (why, ms) => {
+      if (reconnected) return; reconnected = true;
+      log('SSE ' + why + ' — reconnecting in ' + (ms / 1000) + 's');
+      setTimeout(listen, ms);
+    };
+    res.on('end', () => reconnect('dropped', 3000));
+    res.on('error', () => reconnect('stream error', 3000));
   });
   r.on('error', () => { log('SSE error — reconnecting in 5s'); setTimeout(listen, 5000); });
   r.end();
@@ -284,7 +294,10 @@ function listen() {
   await checkIn();
   setInterval(checkIn, 5 * 60 * 1000);
   runSelfTest().then(ok => log('self-test:', ok ? 'PASS — replies are live' : 'FAIL — login hint on demand'));
-  setInterval(runSelfTest, 10 * 60 * 1000);
+  // re-test hourly when healthy (each test is a real CLI call = spend), but
+  // every 10 min while DOWN so a `claude /login` heals quickly
+  setInterval(() => { if (!cliOk) runSelfTest(); }, 10 * 60 * 1000);
+  setInterval(() => { if (cliOk) runSelfTest(); }, 60 * 60 * 1000);
   listen();
   const bye = async () => {
     try { await post('/api/agents/update', { id: AGENT, status: 'offline', statusLabel: 'Not connected', task: null }); } catch {}

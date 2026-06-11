@@ -154,7 +154,15 @@ function Sidebar({ view, onNav, rail, onToggleRail }) {
 
       React.createElement('div', { className: 'mc-sec' }, 'Channels'),
       React.createElement('div', { className: 'mc-nav' },
-        ...window.MC.channels.map(c => navItem(c.id === 'warroom' ? 'warroom' : 'channel:' + c.id, c.name, c.glyph, { badge: c.badge }))),
+        ...window.MC.channels.map(c => {
+          // approval channel: live badge count + land on the home approvals
+          // panel (the channel page itself is a placeholder)
+          if (c.id === 'approval') {
+            const n = (window.MC.approvals || []).length;
+            return navItem('home', c.name, c.glyph, { badge: n > 0 ? n : null });
+          }
+          return navItem(c.id === 'warroom' ? 'warroom' : 'channel:' + c.id, c.name, c.glyph, { badge: c.badge });
+        })),
 
       React.createElement('div', { className: 'mc-sec' }, 'Workspaces'),
       React.createElement('div', { className: 'mc-nav' },
@@ -217,7 +225,7 @@ function CommandBar({ view, onOpenPalette, onNav }) {
       // Autonomy ladder — the operator's master control (manual / semi / full),
       // replaces the old hardcoded Context/Spend gauges (they were sample data)
       window.AutonomyControl && React.createElement(window.AutonomyControl, { compact: true }),
-      React.createElement('button', { className: 'mc-iconbtn', onClick: () => onNav('home'), title: 'Dreaming brief', 'aria-label': 'Dreaming brief' },
+      React.createElement('button', { className: 'mc-iconbtn', onClick: () => onNav('dreaming'), title: 'Dreaming brief', 'aria-label': 'Dreaming brief' },
         React.createElement(Icon, { name: 'moon-star', size: 17 }),
         React.createElement('span', { className: 'mc-iconbtn__dot' })),
       React.createElement('button', { className: 'mc-bar__av', onClick: () => onNav('home'), title: 'Lew', 'aria-label': 'Operator profile' }),

@@ -21,8 +21,26 @@ function AnnouncementsPage({ onNav, onAction }) {
     const item = { id: 'an' + Date.now(), kind: mode, text: text.trim(), time: t };
     if (mode === 'task') item.to = to;
     persist([item, ...items]);
+    const body = text.trim();
     setText('');
-    onAction && onAction('toast', mode === 'announce' ? 'Broadcast to the whole team.' : mode === 'task' ? 'Task assigned to ' + agByA(to).name + '.' : 'Brain dump saved to the vault.');
+    // really deliver when the backend is live — announcements hit the warroom,
+    // tasks land on the agent's direct line, brain dumps write to the vault
+    const live = window.MCLive && MCLive.online;
+    if (!live) return onAction && onAction('toast', 'Logged locally — backend offline, the team was NOT notified.');
+    if (mode === 'announce') {
+      MCLive.postMessage('warroom', 'lew', '📣 ANNOUNCEMENT: ' + body)
+        .then(() => onAction && onAction('toast', 'Broadcast to the War Room — every connected agent sees it.'))
+        .catch(() => onAction && onAction('toast', 'Broadcast failed — see backend.'));
+    } else if (mode === 'task') {
+      MCLive.postMessage('agent:' + to, 'lew', '🎯 TASK: ' + body)
+        .then(() => onAction && onAction('toast', 'Task posted to ' + agByA(to).name + '’s line.'))
+        .catch(() => onAction && onAction('toast', 'Task post failed — see backend.'));
+    } else {
+      const path = 'Brain_Dumps/' + new Date().toISOString().slice(0, 10) + '.md';
+      MCLive.post('/api/vault/note', { path, content: '\n\n## ' + t + '\n' + body, mode: 'append', by: 'lew' })
+        .then(() => onAction && onAction('toast', 'Brain dump appended to the vault → ' + path))
+        .catch(() => onAction && onAction('toast', 'Vault write failed — see backend.'));
+    }
   };
   return React.createElement('div', { className: 'fade-up' },
     React.createElement('div', { className: 'mc-page-head' },

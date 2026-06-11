@@ -11,23 +11,34 @@ function CommandPalette({ open, onClose, onNav, onAction }) {
   const commands = useMP(() => {
     const list = [];
     // actions
-    list.push({ group: 'Actions', icon: 'flag', label: 'Set a goal', hint: 'goal', run: () => onAction('toast', 'Goal mode armed — tell Sage your objective.') });
-    list.push({ group: 'Actions', icon: 'shield-check', label: 'Approve all pending', hint: 'approve', run: () => onAction('toast', 'All 3 approvals signed off.') });
+    list.push({ group: 'Actions', icon: 'flag', label: 'Set a goal', hint: 'goal', run: () => onNav('goals') });
+    list.push({ group: 'Actions', icon: 'shield-check', label: 'Approve all pending', hint: 'approve', run: () => {
+      // really approve — never claim sign-offs that didn't happen
+      const pending = (window.MC.approvals || []);
+      if (!pending.length) return onAction('toast', 'Approval queue is already clear.');
+      if (window.MCLive && MCLive.online) {
+        Promise.allSettled(pending.map(a => MCLive.resolveApproval(a.id, 'approve')))
+          .then(rs => onAction('toast', rs.filter(r => r.status === 'fulfilled').length + ' approval(s) signed off.'));
+      } else onAction('toast', 'Backend offline — nothing was approved.');
+    } });
     list.push({ group: 'Actions', icon: 'plus', label: 'Capture an idea (Kanban)', hint: 'build', run: () => onNav('kanban') });
     list.push({ group: 'Actions', icon: 'video', label: 'Generate a video (Studio)', hint: 'studio', run: () => onNav('studio') });
     list.push({ group: 'Actions', icon: 'messages-square', label: 'Open War Room', hint: 'chat', run: () => onNav('warroom') });
     list.push({ group: 'Actions', icon: 'orbit', label: 'Open Memory Galaxy', hint: 'vault', run: () => onNav('galaxy') });
     list.push({ group: 'Actions', icon: 'moon-star', label: 'Read the dreaming brief', hint: 'brief', run: () => onNav('dreaming') });
     // pages / integrations
-    [['Hermes', 'send', 'hermes', 'central agent'], ['Paperclip · Teams', 'workflow', 'paperclip', 'AI employees'], ['Obsidian Vault', 'box', 'obsidian', 'memory'], ['Gmail', 'message-square', 'gmail', '4 unread'], ['Calendar', 'sun', 'calendar', 'schedule'], ['Drive', 'folder-sync', 'drive', 'files'], ['Notion', 'box', 'notion', 'workspace'], ['Connectors', 'plug', 'connectors', 'API · MCP · CLI']].forEach(([label, icon, v, sub]) =>
+    const gmailSub = (window.MC.gmail && window.MC.gmail.unread) ? window.MC.gmail.unread + ' unread' : 'inbox';
+    [['Hermes', 'send', 'hermes', 'central agent'], ['Paperclip · Teams', 'workflow', 'paperclip', 'AI employees'], ['Obsidian Vault', 'box', 'obsidian', 'memory'], ['Gmail', 'message-square', 'gmail', gmailSub], ['Calendar', 'sun', 'calendar', 'schedule'], ['Drive', 'folder-sync', 'drive', 'files'], ['Notion', 'box', 'notion', 'workspace'], ['Connectors', 'plug', 'connectors', 'API · MCP · CLI']].forEach(([label, icon, v, sub]) =>
       list.push({ group: 'Go to', icon, label, sub, hint: 'open', run: () => onNav(v) }));
     // agents
     window.MC.agents.forEach(a => list.push({ group: 'Agents', icon: null, agent: a, label: a.name, sub: a.role, hint: 'agent', run: () => onNav('agent:' + a.id) }));
     window.MC.personas.forEach(p => list.push({ group: 'Agents', icon: p.glyph, label: 'Summon ' + p.name, sub: p.role, hint: 'persona', run: () => onNav('pantheon') }));
     // programs
     window.MC.programs.forEach(p => list.push({ group: 'Programs', icon: p.glyph, label: p.name, sub: p.note, hint: 'program', run: () => onNav('connectors') }));
-    // workspaces
-    window.MC.workspaces.forEach(w => list.push({ group: 'Workspaces', icon: w.glyph, label: w.name, hint: 'go', run: () => onNav(w.id === 'galaxy' ? 'galaxy' : 'ws:' + w.id) }));
+    // workspaces — these ids collide with REAL routes; map them so the palette
+    // lands on the actual pages, not the generic ws:* placeholder
+    const WS_ROUTE = { goals: 'goals', kanban: 'kanban', studio: 'studio', content: 'content', galaxy: 'galaxy', cost: 'ws:cost' };
+    window.MC.workspaces.forEach(w => list.push({ group: 'Workspaces', icon: w.glyph, label: w.name, hint: 'go', run: () => onNav(WS_ROUTE[w.id] || 'ws:' + w.id) }));
     return list;
   }, [onNav, onAction]);
 

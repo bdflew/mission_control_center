@@ -253,8 +253,12 @@
       });
 
       // ---- speech bubbles (HTML overlay = crisp wrapped text) ----
+      // timers tracked + placer self-guards: leaving the page mid-bubble must
+      // not keep ticking against a destroyed PIXI app (perf audit P1).
+      // (`disposed` is the effect-wide flag declared above.)
+      const bubbleTimers = new Set();
       function bubble(id, text) {
-        const av = avatars[id]; if (!av || !overlay.current) return;
+        const av = avatars[id]; if (!av || !overlay.current || disposed) return;
         const meta = agentMeta(id) || { name: id };
         const el = document.createElement('div');
         el.className = 'mc-office__bubble';
@@ -263,14 +267,16 @@
         el.appendChild(document.createTextNode(String(text).slice(0, 140)));
         overlay.current.appendChild(el);
         const place = () => {
+          if (disposed || !app.view || !app.view.clientWidth) return;
           const s = app.view.clientWidth / W;
           el.style.left = (av.c.x * s) + 'px';
           el.style.top  = ((av.c.y - 96) * s) + 'px';
         };
         place();
         const iv = setInterval(place, 80);
-        setTimeout(() => { el.classList.add('fade'); }, 5200);
-        setTimeout(() => { clearInterval(iv); el.remove(); }, 5800);
+        const t1 = setTimeout(() => { el.classList.add('fade'); }, 5200);
+        const t2 = setTimeout(() => { clearInterval(iv); el.remove(); bubbleTimers.delete(iv); bubbleTimers.delete(t1); bubbleTimers.delete(t2); }, 5800);
+        bubbleTimers.add(iv); bubbleTimers.add(t1); bubbleTimers.add(t2);
       }
 
       // ---- movement + behaviors ----
@@ -449,6 +455,8 @@
 
       return () => {
         disposed = true;
+        bubbleTimers.forEach(tm => { clearInterval(tm); clearTimeout(tm); });
+        bubbleTimers.clear();
         window.removeEventListener('mc:live', onLive);
         if (offEvt) offEvt();
         app.ticker.remove(tick);

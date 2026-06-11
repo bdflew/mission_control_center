@@ -93,14 +93,19 @@ function HeroStrip() {
 }
 
 // ---------- hero metric cards (live MC.heroMetrics) ----------
-function MetricCards() {
+function MetricCards({ onNav }) {
+  // each card opens the surface behind the number
+  const TARGET = { approvals: 'home', agents: 'paperclip', notes: 'galaxy', tasks: 'kanban', spend: 'ws:cost' };
   return (
     <div className="mc-metrics v3h-metrics">
       {window.MC.heroMetrics.map((m) => {
         const gold = m.tone === 'gold';
         const color = gold ? '#E8C766' : '#23D6F5';
+        const dest = TARGET[m.id];
         return (
-          <div key={m.id} className={'mc-metric holo v3h-metric' + (m.featured ? ' is-featured holo--gold' : '') + ' fade-up'}>
+          <button key={m.id} onClick={() => dest && onNav && onNav(dest)} title={dest ? 'Open' : undefined}
+            style={{ all: 'unset', cursor: dest ? 'pointer' : 'default', display: 'block' }}
+            className={'mc-metric holo v3h-metric' + (m.featured ? ' is-featured holo--gold' : '') + ' fade-up'}>
             <div className="holo-sheen" />
             <div className="mc-metric__top">
               <div className={'mc-metric__ico' + (gold ? ' gold' : '')}><Icon name={m.glyph} size={15} /></div>
@@ -114,7 +119,7 @@ function MetricCards() {
               <span className={'mc-metric__delta' + (gold ? ' gold' : '')}>{m.delta}</span>
               <Sparkline data={m.spark} color={color} />
             </div>
-          </div>
+          </button>
         );
       })}
     </div>
@@ -228,8 +233,10 @@ function ApprovalsQueue() {
   // keep in sync with live approvals (live.js reassigns MC.approvals on SSE events)
   useEffectH(() => { setItems(window.MC.approvals || []); }, [window.MC.approvals]);
   const resolve = (id, ok) => {
+    // never fake-resolve: offline clicks change nothing and say so
+    if (!(window.MCLive && window.MCLive.online)) { setFlash(null); return; }
     setFlash({ id, ok });
-    if (window.MCLive && window.MCLive.online) window.MCLive.resolveApproval(id, ok ? 'approve' : 'hold');
+    window.MCLive.resolveApproval(id, ok ? 'approve' : 'hold').catch(() => {});
     setTimeout(() => { setItems(p => p.filter(x => x.id !== id)); setFlash(null); }, 360);
   };
   const riskChip = { low: 'good', med: 'gold', high: 'crimson' };
@@ -492,7 +499,7 @@ function HomeView({ onNav, agentVariant, heroVariant }) {
       <SciFiBackdrop variant="alien" />
       <div className="sci-fg">
         <HeroStrip />
-        <MetricCards />
+        <MetricCards onNav={onNav} />
         <div className="mc-bento v3h-bento">
           <div className="span2"><AgentGrid variant={agentVariant} onNav={onNav} /></div>
           <MissionCard />

@@ -61,16 +61,21 @@ function HyperVideo({ video }) {
     };
     const S = stateRef.current;
     const dur = 6; // seconds total loop for preview
+    // perf: cache the scrub node once (was a per-frame querySelector), and
+    // only run the rAF loop WHILE PLAYING — 4 paused cards used to burn 4
+    // full-canvas 60fps loops at idle, the heaviest page in the app
+    const fill = cv.parentElement ? cv.parentElement.querySelector('.mc-vid__scrubfill') : null;
+    paint(S.t); // static frame for the paused/rendering state
+    if (fill) fill.style.width = (S.t * 100) + '%';
+    if (!playing || video.status === 'rendering') return; // no loop unless playing
     let last = performance.now();
     const loop = (now) => {
       const dt = (now - last) / 1000; last = now;
-      if (playing) { S.t += dt / dur; if (S.t >= 1) S.t = 0; }
+      S.t += dt / dur; if (S.t >= 1) S.t = 0;
       paint(S.t);
-      const fill = cvRef.current?.parentElement?.querySelector('.mc-vid__scrubfill');
       if (fill) fill.style.width = (S.t * 100) + '%';
       S.raf = requestAnimationFrame(loop);
     };
-    paint(S.t); // sync first frame (works even when rAF paused)
     S.raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(S.raf);
   }, [playing]);
@@ -113,6 +118,20 @@ const STUDIO_FLOW = {
   Render: { glyph: 'video', rows: ['Compose scenes + voice → MP4', '1920×1080 · 30fps', 'Keyword stamped in title + description', 'Saved to Drive + logged to vault'] },
   'Self-check': { glyph: 'shield-check', rows: ['Reviews its own output before handoff', 'Checks pacing, readability, brand fit', 'Flags + re-renders any weak scene', 'Marks ready only when it passes'] },
 };
+// Fire a configured agent webhook FOR REAL and report what actually happened.
+// (The old toasts claimed "Webhook fired → producing autonomously" while
+// sending nothing — against the honest-states doctrine.)
+function fireAgentHook(hook, payload, onAction, agentName) {
+  if (!hook || !/^https?:\/\//.test(hook.url || '')) {
+    onAction && onAction('toast', agentName + ' is configured in manual mode — nothing was sent.');
+    return;
+  }
+  fetch(hook.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+    .then(r => onAction && onAction('toast', r.ok ? 'Webhook delivered → ' + agentName + ' (HTTP ' + r.status + ').' : 'Webhook failed (HTTP ' + r.status + ') — ' + agentName + ' was NOT triggered.'))
+    .catch(() => onAction && onAction('toast', 'Webhook unreachable — ' + agentName + ' was NOT triggered.'));
+}
+window.fireAgentHook = fireAgentHook;
+
 function StudioPage({ onAction }) {
   const S = window.MC.studio;
   const [prompt, setPrompt] = useSb('');
@@ -122,11 +141,16 @@ function StudioPage({ onAction }) {
   const [hookModal, setHookModal] = useSb(false);
   const agOf = (id) => window.MC.agents.find(a => a.id === id) || { name: 'Faye', avatarGrad: 'linear-gradient(145deg,#0B5F45,#34D399)' };
   const persistHook = (h) => { setHook(h); try { localStorage.setItem('mc_hook_studio', JSON.stringify(h)); } catch (e) {} };
-  const toggleAuto = () => { const next = !auto; setAuto(next); if (next) { if (!hook) setHookModal(true); else onAction && onAction('toast', 'Webhook fired → ' + agOf(hook.agent).name + ' is producing video autonomously.'); } };
+  const toggleAuto = () => { const next = !auto; setAuto(next); if (next) { if (!hook) setHookModal(true); else onAction && onAction('toast', 'Autonomous armed — each prompt now fires ' + agOf(hook.agent).name + '’s webhook.'); } };
   const videos = S.videos.map(v => ({ ...v, _scenes: VIDEO_SCENES[v.id] || ['Scene'] }));
   const flowKeys = Object.keys(STUDIO_FLOW);
   const fp = STUDIO_FLOW[flow];
-  const go = () => { if (!prompt.trim()) return; onAction && onAction('toast', auto ? 'Faye is producing the video end-to-end…' : 'Hyperframes queued — writing the script now.'); setPrompt(''); };
+  const go = () => {
+    if (!prompt.trim()) return;
+    if (auto && hook) fireAgentHook(hook, { surface: 'studio', kind: 'video', prompt: prompt.trim() }, onAction, agOf(hook.agent).name);
+    else onAction && onAction('toast', 'Demo: prompt noted locally — connect an agent (Autonomous toggle) to produce it for real.');
+    setPrompt('');
+  };
   return React.createElement('div', { className: 'fade-up' },
     React.createElement('div', { className: 'mc-section__head' },
       React.createElement('div', { className: 'mc-page-head', style: { marginBottom: 0 } },
@@ -296,8 +320,8 @@ function HermesPage({ onNav }) {
               <div className="v3m-decree__sub">Mission Control Goal</div>
               <div className="v3m-decree__text">Grow the YouTube channel by 1,000 subscribers. Hermes drafts the plan, assigns the team, and you keep the approval gate.</div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <Btn variant="gold" size="sm" icon="arrow-right" onClick={() => onNav('ws:kanban')}>Open the plan</Btn>
-                <Btn variant="quiet" size="sm" icon="plus">Set new goal</Btn>
+                <Btn variant="gold" size="sm" icon="arrow-right" onClick={() => onNav('kanban')}>Open the plan</Btn>
+                <Btn variant="quiet" size="sm" icon="plus" onClick={() => onNav('goals')}>Set new goal</Btn>
               </div>
             </div>
           </div>
@@ -323,6 +347,9 @@ const V3D_PHASES = [
   { ph: 'COMPOSE BRIEF', hrs: '05–06', from: 5, to: 6, d: 'Write the morning brief and queue suggested moves for approval' },
 ];
 const V3D_SEEDS = ['lead recovery', 'content angles', 'cost savings'];
+// "Act on it" routes to the surface each insight is actually about
+// (by insight id, with tone as a fallback for future insights)
+const DREAM_ACT_ROUTE = { di1: 'ws:cost', di2: 'galaxy', di3: 'agent:kratos', di4: 'studio', di5: 'skills', crimson: 'security', gold: 'home', cyan: 'home', emerald: 'skills' };
 
 function DreamingPage({ onNav }) {
   const D = window.MC.dreamingPage;
@@ -446,7 +473,7 @@ function DreamingPage({ onNav }) {
               <div className="mc-dreaminsight__x">{d.text}</div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <span className="mc-dreaminsight__from">{'◆ ' + d.from}</span>
-                <Btn variant="ghost" size="sm" onClick={() => { onNav && onNav('home'); }}>Act on it</Btn>
+                <Btn variant="ghost" size="sm" onClick={() => { onNav && onNav(DREAM_ACT_ROUTE[d.id] || DREAM_ACT_ROUTE[d.tone] || 'home'); }}>Act on it</Btn>
                 <Btn variant="quiet" size="sm" onClick={() => setItems(p => p.filter(x => x.id !== d.id))}>Dismiss</Btn>
               </div>
             </div>

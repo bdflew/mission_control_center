@@ -102,7 +102,7 @@ const KPREVIEW = {
   thumb: { grad: 'radial-gradient(120% 120% at 30% 0%, rgba(216,167,74,0.25), rgba(20,25,34,0.9))', glyph: 'image', color: '#E8C766' },
   form: { grad: 'radial-gradient(120% 120% at 30% 0%, rgba(52,211,153,0.25), rgba(20,25,34,0.9))', glyph: 'file-text', color: '#34D399' },
 };
-function KanbanPage({ onAction }) {
+function KanbanPage({ onAction, onNav }) {
   const [cards, setCards] = useSa(window.MC.kanban.cards);
   const [idea, setIdea] = useSa('');
   const cols = window.MC.kanban.columns;
@@ -136,11 +136,18 @@ function KanbanPage({ onAction }) {
           col.id === 'capture' && React.createElement('div', { className: 'mc-kcapture' },
             React.createElement('textarea', { value: idea, onChange: e => setIdea(e.target.value), placeholder: 'Drop one idea… e.g. "Create a beautiful SEO blog for OpenClaw"', onKeyDown: e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) capture(); } }),
             React.createElement(Btn, { variant: 'cyan', size: 'sm', icon: 'zap', onClick: capture }, 'Let agents shape it')),
-          ...colCards.map(c => React.createElement(KCard, { key: c.id, c, onMove: move, preview: KPREVIEW[c.preview] })));
+          ...colCards.map(c => React.createElement(KCard, { key: c.id, c, onMove: move, preview: KPREVIEW[c.preview], onNav, onAction })));
       })),
   );
 }
-function KCard({ c, onMove, preview }) {
+function KCard({ c, onMove, preview, onNav, onAction }) {
+  // shipped-card Preview: the cost dashboard is a real page; other ships
+  // explain honestly where the artifact lives
+  const doPreview = () => {
+    if (c.preview === 'cost' && onNav) return onNav('ws:cost');
+    if (onNav && c.preview === 'galaxy') return onNav('galaxy');
+    onAction && onAction('toast', 'Shipped artifact — output lives in the vault / Drive (preview page not wired for this card).');
+  };
   return React.createElement('div', { className: 'mc-kcard' },
     preview && React.createElement('div', { className: 'mc-kpreview', style: { background: preview.grad } },
       React.createElement('span', { className: 'pv-ico', style: { color: preview.color } }, React.createElement(Icon, { name: preview.glyph, size: 22 }))),
@@ -157,7 +164,7 @@ function KCard({ c, onMove, preview }) {
         React.createElement(Btn, { variant: 'gold', size: 'sm', icon: 'check', onClick: () => onMove(c.id, 'building') }, 'Approve'),
         React.createElement(Btn, { variant: 'quiet', size: 'sm', onClick: () => onMove(c.id, 'capture') }, 'Reject')),
       c.col === 'building' && React.createElement('span', { className: 'mono', style: { fontSize: 10, color: '#34D399' } }, c.progress + '%'),
-      c.col === 'shipped' && React.createElement(Btn, { variant: 'ghost', size: 'sm', icon: 'eye' }, 'Preview')),
+      c.col === 'shipped' && React.createElement(Btn, { variant: 'ghost', size: 'sm', icon: 'eye', onClick: doPreview }, 'Preview')),
   );
 }
 
@@ -270,8 +277,8 @@ function PaperclipPage({ onNav }) {
                   React.createElement('div', { className: 'mc-pcnode__role' }, ag.name),
                   React.createElement('div', { className: 'mc-pcnode__model' }, (ag.model || 'claude').split('-')[0])); }))),
             React.createElement('div', { style: { marginTop: 14, display: 'flex', gap: 8 } },
-              React.createElement(Btn, { variant: 'ghost', size: 'sm', icon: 'plus' }, 'Add agent'),
-              React.createElement(Btn, { variant: 'quiet', size: 'sm', icon: 'target' }, 'New goal')));
+              React.createElement(Btn, { variant: 'ghost', size: 'sm', icon: 'plus', onClick: () => onNav && onNav('pantheon') }, 'Add agent'),
+              React.createElement(Btn, { variant: 'quiet', size: 'sm', icon: 'target', onClick: () => onNav && onNav('goals') }, 'New goal')));
         }))),
     React.createElement('div', { className: 'mc-section' },
       React.createElement('div', { className: 'mc-panel' },

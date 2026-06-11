@@ -192,6 +192,19 @@ function CommandChainAnim() {
       ctx.fillStyle = 'rgba(207,234,255,0.0)';
       const capEl = wrap.querySelector('.mc-anim__cap'); if (capEl && capEl.textContent !== st.caption) capEl.textContent = st.caption;
 
+      // respect the motion tweak + prefers-reduced-motion: park on a static
+      // frame and probe to resume (was the one loop ignoring both — audit P2)
+      const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const msc = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--motion-scale')) || 1;
+      if (reduced || msc <= 0.001) {
+        const probe = setInterval(() => {
+          const m2 = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--motion-scale')) || 1;
+          const r2 = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          if (!r2 && m2 > 0.001) { clearInterval(probe); S.last = performance.now(); S.raf = requestAnimationFrame(frame); }
+        }, 1500);
+        S.probe = probe;
+        return;
+      }
       S.raf = requestAnimationFrame(frame);
     }
 
@@ -199,7 +212,7 @@ function CommandChainAnim() {
     resize(); window.addEventListener('resize', resize);
     // paint one sync frame, then animate
     S.last = performance.now(); frame(S.last);
-    return () => { cancelAnimationFrame(S.raf); window.removeEventListener('resize', resize); };
+    return () => { cancelAnimationFrame(S.raf); if (S.probe) clearInterval(S.probe); window.removeEventListener('resize', resize); };
   }, []);
 
   return React.createElement('div', { className: 'mc-anim', ref: wrapRef },

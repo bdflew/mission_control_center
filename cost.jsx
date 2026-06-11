@@ -51,6 +51,10 @@ function DonutChart({ items, size = 168 }) {
 
 function CostPage() {
   const U = window.MC.usage;
+  // tips are actionable: Mark applied flags it (honest — applying happens in
+  // the provider console), Dismiss removes it; both persist
+  const [tipState, setTipState] = useScost(() => { try { return JSON.parse(localStorage.getItem('mc_cost_tips')) || {}; } catch (e) { return {}; } });
+  const setTip = (id, v) => setTipState(s => { const n = { ...s, [id]: v }; try { localStorage.setItem('mc_cost_tips', JSON.stringify(n)); } catch (e) {} return n; });
   const [range, setRange] = useScost('day');
   const agents = window.MC.agents;
   const labelsFor = { hour: ['-11h', '-9h', '-7h', '-5h', '-3h', '-1h'], day: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], week: ['6w', '5w', '4w', '3w', '2w', 'now'] };
@@ -109,12 +113,16 @@ function CostPage() {
           React.createElement('div', { className: 'mc-au__num' }, React.createElement('div', { className: 'v' }, Math.round(u.week.reduce((s, x) => s + x, 0) / 1000) + 'M'), React.createElement('div', { className: 'l' }, 'This week')))); })),
     // savings tips
     React.createElement('div', { className: 'mc-section__title', style: { fontSize: 12, marginBottom: 12 } }, React.createElement('i', null, React.createElement(Icon, { name: 'trending-down', size: 15 })), 'Savings & Improvements'),
-    ...U.tips.map(t => React.createElement('div', { key: t.id, className: 'mc-dreaminsight' },
+    ...U.tips.filter(t => tipState[t.id] !== 'dismissed').map(t => React.createElement('div', { key: t.id, className: 'mc-dreaminsight', style: tipState[t.id] === 'applied' ? { opacity: .65 } : null },
       React.createElement('div', { className: 'mc-dreaminsight__ico tone-' + t.tone }, React.createElement(Icon, { name: t.glyph, size: 18 })),
       React.createElement('div', { className: 'mc-dreaminsight__b' },
         React.createElement('div', { className: 'mc-dreaminsight__t' }, t.title),
         React.createElement('div', { className: 'mc-dreaminsight__x' }, t.text),
-        React.createElement('div', { style: { display: 'flex', gap: 8 } }, React.createElement(Btn, { variant: 'ghost', size: 'sm', icon: 'check' }, 'Apply'), React.createElement(Btn, { variant: 'quiet', size: 'sm' }, 'Dismiss'))),
+        React.createElement('div', { style: { display: 'flex', gap: 8, alignItems: 'center' } },
+          tipState[t.id] === 'applied'
+            ? React.createElement('span', { className: 'mc-chip good' }, React.createElement('span', { className: 'dot' }), 'MARKED APPLIED')
+            : React.createElement(Btn, { variant: 'ghost', size: 'sm', icon: 'check', title: 'Marks the tip as handled — the actual change happens in your provider console', onClick: () => setTip(t.id, 'applied') }, 'Mark applied'),
+          React.createElement(Btn, { variant: 'quiet', size: 'sm', onClick: () => setTip(t.id, 'dismissed') }, 'Dismiss'))),
       React.createElement('div', { className: 'mc-dreaminsight__save', style: { color: toneCol[t.tone] } }, t.save))),
   );
 }

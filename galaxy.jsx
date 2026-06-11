@@ -214,12 +214,16 @@ function MemoryGalaxy({ motionScale = 1 }) {
     return () => { mounted = false; cancelAnimationFrame(S.raf); };
   }, [motionScale]);
 
-  // ---- tooltip sync (throttled via rAF state) ----
+  // ---- tooltip sync (throttled; only set state when content changed —
+  // identical objects every 80ms caused constant re-renders while hovering) ----
   useEffectG(() => {
-    let id; const tick = () => {
+    let id, prevKey = '';
+    const tick = () => {
       const S = stateRef.current;
-      if (S.hover && S.mouse) setTip({ x: S.hover._sx, y: S.hover._sy, title: S.hover.note.title, tag: '#' + S.hover.cluster });
-      else setTip(null);
+      if (S.hover && S.mouse) {
+        const key = Math.round(S.hover._sx) + ':' + Math.round(S.hover._sy) + ':' + S.hover.note.title;
+        if (key !== prevKey) { prevKey = key; setTip({ x: S.hover._sx, y: S.hover._sy, title: S.hover.note.title, tag: '#' + S.hover.cluster }); }
+      } else if (prevKey !== '') { prevKey = ''; setTip(null); }
       id = setTimeout(tick, 80);
     };
     tick();
@@ -315,8 +319,12 @@ function MemoryGalaxy({ motionScale = 1 }) {
               React.createElement('span', { className: 'nm' }, ln.title),
               React.createElement(Icon, { name: 'chevron-right', size: 14, style: { color: 'var(--fg-3)', marginLeft: 'auto' } }))) : React.createElement('div', { style: { fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--fg-3)' } }, 'No outbound links.'))),
         React.createElement('div', { className: 'mc-note__foot' },
-          React.createElement(Btn, { variant: 'cyan', size: 'sm', icon: 'eye' }, 'Open in Obsidian'),
-          React.createElement(Btn, { variant: 'ghost', size: 'sm', icon: 'pen-line' }, 'Edit')))),
+          // live vault notes carry a real path → deep-link straight into the
+          // Obsidian app; sample notes (no path) say so honestly
+          openNote.path
+            ? React.createElement(Btn, { variant: 'cyan', size: 'sm', icon: 'eye', onClick: () => { location.href = 'obsidian://open?path=' + encodeURIComponent(openNote.path); } }, 'Open in Obsidian')
+            : React.createElement(Btn, { variant: 'cyan', size: 'sm', icon: 'eye', title: 'Sample node — connect the backend to link real notes', onClick: () => { location.hash = 'obsidian'; } }, 'Open in Obsidian'),
+          openNote.path && React.createElement(Btn, { variant: 'ghost', size: 'sm', icon: 'pen-line', onClick: () => { location.href = 'obsidian://open?path=' + encodeURIComponent(openNote.path); } }, 'Edit')))),
   );
 }
 
